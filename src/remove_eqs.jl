@@ -132,10 +132,11 @@ NLPModels.objgrad!(model::EqualityLessModel, x::AbstractVector, g::AbstractVecto
   objgrad!(model.model, x, g)
 
 NLPModels.cons!(model::EqualityLessModel, x::AbstractVector, c::AbstractVector) = begin
-  cons!(model.model, x, model.c)
+  inner = model.model
+  cons!(inner, x, model.c)
   l = 1
-  for j = 1:model.meta.ncon
-    j ∈ model.meta.jfix && continue
+  for j = 1:inner.meta.ncon
+    j ∈ inner.meta.jfix && continue
     c[l] = model.c[j]
     l += 1
   end
@@ -143,11 +144,12 @@ NLPModels.cons!(model::EqualityLessModel, x::AbstractVector, c::AbstractVector) 
 end
 
 NLPModels.jac_structure!(model::EqualityLessModel, rows::Vector{Int}, cols::Vector{Int}) = begin
-  jac_structure!(model.model, model.jrows, model.jcols)
+  inner = model.model
+  jac_structure!(inner, model.jrows, model.jcols)
   l = 1
-  for k = 1:model.meta.nnzj
-    cons = jrows[k]
-    cons ∈ model.meta.jfix && continue
+  for k = 1:inner.meta.nnzj
+    cons = model.jrows[k]
+    cons ∈ inner.meta.jfix && continue
     rows[l] = cons
     cols[l] = model.jcols[k]
     l += 1
@@ -156,11 +158,12 @@ NLPModels.jac_structure!(model::EqualityLessModel, rows::Vector{Int}, cols::Vect
 end
 
 NLPModels.jac_coord!(model::EqualityLessModel, x::AbstractVector, jvals::AbstractVector) = begin
-  jac_coord!(model.model, x, model.jvals)
+  inner = model.model
+  jac_coord!(inner, x, model.jvals)
   l = 1
-  for k = 1:model.meta.nnzj
+  for k = 1:inner.meta.nnzj
     cons = jrows[k]
-    cons ∈ model.meta.jfix && continue
+    cons ∈ inner.meta.jfix && continue
     jvals[l] = model.jvals[k]
     l += 1
   end
@@ -175,9 +178,10 @@ NLPModels.hess_coord!(model::EqualityLessModel, x::AbstractVector, hvals::Abstra
 
 # zero out multipliers corresponding to removed equality constraints
 zero_out_eq_multipliers!(model::EqualityLessModel, y::AbstractVector) = begin
+  inner = model.model
   l = 1
-  for j = 1:model.model.ncon
-    if j ∈ model.meta.jfix
+  for j = 1:inner.meta.ncon
+    if j ∈ inner.meta.jfix
       model.y[j] = zero(eltype(y))
     else
       model.y[j] = y[l]

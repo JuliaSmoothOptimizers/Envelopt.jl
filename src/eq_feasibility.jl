@@ -1,4 +1,4 @@
-export EqualityFeasiblityModel
+export EqualityFeasibilityModel
 
 # Extract a feasibility problem from a problem with equality constraints.
 # If the input model is
@@ -12,7 +12,7 @@ export EqualityFeasiblityModel
 #
 # minimize 0  subj. to c(x) = 0.
 #
-mutable struct EqualityFeasiblityModel{
+mutable struct EqualityFeasibilityModel{
   T,
   S,
   M <: AbstractNLPModel{T, S},
@@ -27,7 +27,7 @@ mutable struct EqualityFeasiblityModel{
   v::S  # temporary storage for jtprod of the original model
 end
 
-function EqualityFeasiblityModel(model::AbstractNLPModel{T, S}) where {T, S}
+function EqualityFeasibilityModel(model::AbstractNLPModel{T, S}) where {T, S}
   has_equalities(model) || error("model does not have equality constraints")
   #
   # compute indices of linear constraints among the equality constraints
@@ -65,8 +65,8 @@ function EqualityFeasiblityModel(model::AbstractNLPModel{T, S}) where {T, S}
   meta = NLPModelMeta(
     nvar,
     x0 = model.meta.x0,
-    lvar = -Inf * model.meta.lvar,
-    uvar = Inf * model.meta.uvar,
+    lvar = fill(-Inf, nvar),
+    uvar = fill(Inf, nvar),
     nlvb = model.meta.nlvb,  # could be wrong, e.g., if equality constraints are linear
     nlvo = 0,
     nlvc = model.meta.nlvc,  # could be wrong, e.g., if equality constraints are linear
@@ -96,9 +96,9 @@ function EqualityFeasiblityModel(model::AbstractNLPModel{T, S}) where {T, S}
   )
 
   c = S(undef, model.meta.ncon)
-  v = S(undef, nvar)
+  v = S(undef, model.meta.ncon)
 
-  return EqualityFeasiblityModel{T, S, typeof(model), typeof(meta)}(
+  return EqualityFeasibilityModel{T, S, typeof(model), typeof(meta)}(
     model,
     meta,
     c,
@@ -109,28 +109,30 @@ function EqualityFeasiblityModel(model::AbstractNLPModel{T, S}) where {T, S}
   )
 end
 
-@default_counters EqualityFeasiblityModel model
+@default_counters EqualityFeasibilityModel model
 
-NLPModels.obj(model::EqualityFeasiblityModel, x::AbstractVector) = zero(eltype(x))
-NLPModels.grad!(model::EqualityFeasiblityModel, x::AbstractVector, g::AbstractVector) =
+NLPModels.obj(model::EqualityFeasibilityModel, x::AbstractVector) = zero(eltype(x))
+NLPModels.grad!(model::EqualityFeasibilityModel, x::AbstractVector, g::AbstractVector) =
   fill!(g, zero(eltype(x)))
 
-NLPModels.cons!(model::EqualityFeasiblityModel, x::AbstractVector, c::AbstractVector) = begin
-  cons!(model.model, x, model.c)
-  @views c .= model.c[model.meta.jfix]
+NLPModels.cons!(model::EqualityFeasibilityModel, x::AbstractVector, c::AbstractVector) = begin
+  inner = model.model
+  cons!(inner, x, model.c)
+  @views c .= model.c[inner.meta.jfix]
   c
 end
 
 NLPModels.jac_structure!(
-  model::EqualityFeasiblityModel,
+  model::EqualityFeasibilityModel,
   rows::AbstractVector,
   cols::AbstractVector,
 ) = begin
-  jac_structure!(model.model, model.jrows, model.jcols)
+  inner = model.model
+  jac_structure!(inner, model.jrows, model.jcols)
   l = 1
-  for k = 1:model.meta.nnzj
+  for k = 1:inner.meta.nnzj
     cons = jrows[k]
-    if cons ∈ model.meta.jfix
+    if cons ∈ inner.meta.jfix
       rows[l] = cons
       cols[l] = model.jcols[k]
       l += 1
@@ -139,7 +141,7 @@ NLPModels.jac_structure!(
   rows, cols
 end
 
-NLPModels.jac_coord!(model::EqualityFeasiblityModel, x::AbstractVector, jvals::AbstractVector) =
+NLPModels.jac_coord!(model::EqualityFeasibilityModel, x::AbstractVector, jvals::AbstractVector) =
   begin
     jac_coord!(model.model, x, model.jvals)
     l = 1
@@ -170,7 +172,7 @@ NLPModels.jac_coord!(model::EqualityFeasiblityModel, x::AbstractVector, jvals::A
 #     end
 
 NLPModels.jtprod_lin!(
-  model::EqualityFeasiblityModel,
+  model::EqualityFeasibilityModel,
   x::AbstractVector,
   v::AbstractVector,
   jtv::AbstractVector,
@@ -182,26 +184,26 @@ NLPModels.jtprod_lin!(
 end
 
 NLPModels.jtprod_nln!(
-  model::EqualityFeasiblityModel,
+  model::EqualityFeasibilityModel,
   x::AbstractVector,
   v::AbstractVector,
   jtv::AbstractVector,
 ) = begin
   model.v .= 0
   model.v[model.model.meta.jfix] .= v
-  jtprod_nln!(model.model, x, v, jtv)
+  jtprod_nln!(model.model, x, model.v, jtv)
   jtv
 end
 
 NLPModels.jtprod!(
-  model::EqualityFeasiblityModel,
+  model::EqualityFeasibilityModel,
   x::AbstractVector,
   v::AbstractVector,
   jtv::AbstractVector,
 ) = begin
   model.v .= 0
   model.v[model.model.meta.jfix] .= v
-  jtprod!(model.model, x, v, jtv)
+  jtprod!(model.model, x, model.v, jtv)
   jtv
 end
 

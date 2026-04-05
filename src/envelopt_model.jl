@@ -72,7 +72,7 @@ function EnveloptNLPModel(
   μ::T = one(T),
   x0::S = get_x0(model),
 ) where {T, S, M <: AbstractNLPModel{T, S}, FMODEL <: AbstractNLPModel{T, S}, H}
-  get_nvar(model) == get_nvar(F) || error("number of variables in model and b must match")
+  get_nvar(model) == get_nvar(F) || error("number of variables in model and F must match")
   μ > 0 || error("penalty parameter must be > 0")
   get_ncon(F) > 0 || error("F model must have constraints")
   envelope = MoreauEnvelope(h, μ)
@@ -332,8 +332,8 @@ NLPModels.hprod!(
   inner_model = qn_model.env_model.model
   hprod!(inner_model, x, y, v, hv)  # product with the Hessian of the Lagrangian f(x) - yᵀc(x)
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
-  @views hprod!(model.op, x[1:nx], v[1:nx], model.hv)  # product with the quasi-Newton approximation of the Hessian of g_μ
-  @views hv[1:nx] .+= model.hv
+  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the quasi-Newton approximation of the Hessian of g_μ
+  @views hv[1:nx] .+= qn_model.hv
   return hv
 end
 
@@ -346,8 +346,8 @@ NLPModels.hprod!(
   inner_model = qn_model.env_model.model
   hprod!(inner_model, x, v, hv)     # product with the Hessian of f
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
-  @views hprod!(model.op, x[1:nx], v[1:nx], model.hv)  # product with the LBFGS approximation of the Hessian of g_μ
-  @views hv[1:nx] .+= model.hv
+  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the LBFGS approximation of the Hessian of g_μ
+  @views hv[1:nx] .+= qn_model.hv
   return hv
 end
 

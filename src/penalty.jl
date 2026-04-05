@@ -23,7 +23,7 @@ function exact_penalty_solver(
   @assert !has_equalities(model)
 
   # F(x)
-  Fmodel = EqualityFeasiblityModel(snlp)
+  Fmodel = EqualityFeasibilityModel(snlp)
   @assert equality_constrained(Fmodel)
 
   # select subsolver, depending on constraints left in model

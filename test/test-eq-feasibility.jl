@@ -1,7 +1,7 @@
 @testitem "eq-feasibility model of unconstrained model" tags=[:modifier] begin
   using ADNLPModels
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
-  @test_throws ErrorException EqualityFeasiblityModel(model)
+  @test_throws ErrorException EqualityFeasibilityModel(model)
 end
 
 @testitem "eq-feasibility model of equality-constrained model" tags=[:modifier] begin
@@ -13,7 +13,7 @@ end
     [0.0],
     [0.0],
   )
-  feas_model = EqualityFeasiblityModel(model)
+  feas_model = EqualityFeasibilityModel(model)
   @test equality_constrained(feas_model)
   @test get_ncon(feas_model) == 1
   @test all(cons(feas_model, get_x0(feas_model)) .== cons(model, get_x0(model)))
@@ -32,7 +32,7 @@ end
     [0.0, 0.0],
     [0.0, Inf],
   )
-  feas_model = EqualityFeasiblityModel(model)
+  feas_model = EqualityFeasibilityModel(model)
   @test equality_constrained(feas_model)
   @test get_ncon(feas_model) == 1
   jfix = get_jfix(model)
