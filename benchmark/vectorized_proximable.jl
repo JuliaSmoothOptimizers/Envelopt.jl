@@ -24,7 +24,7 @@ end
 
 VectorizedProximable(matfun, n) = VectorizedProximable(matfun, n, n)
 
-is_convex(f::Type{<:VectorizedProximable}) = is_convex(f.matfun)
+is_convex(f::VectorizedProximable) = is_convex(f.matfun)
 
 function (f::VectorizedProximable)(x)
   f.X .= reshape(x, (f.n, f.m))
