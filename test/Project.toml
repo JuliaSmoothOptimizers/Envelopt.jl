@@ -15,7 +15,7 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
 ADNLPModels = "0.8"
-MadNLP = "0.8"
+MadNLP = "0.9"
 NCL = "0.1"
 NLPModels = "0.21"
 NLPModelsModifiers = "0.8"

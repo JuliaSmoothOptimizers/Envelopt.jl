@@ -25,7 +25,7 @@ function (M::TronEnveloptSubSolver)(
   tol::Float64 = 1.0e-6,
   kwargs...,
 )
-  solve!(
+  JSOSolvers.solve!(
     M.solver,
     EnveloptLSR1Model(env_model),
     M.stats;

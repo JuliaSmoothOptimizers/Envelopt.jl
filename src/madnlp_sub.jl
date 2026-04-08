@@ -56,7 +56,7 @@ function (M::MadNLPEnveloptSubSolver)(
     copyto!(M.solver.y, madnlp_y)
   end
 
-  return solve!(M.solver; mu_init = mu_init, bound_push = bound_push, kwargs...)
+  return MadNLP.solve!(M.solver; mu_init = mu_init, bound_push = bound_push, kwargs...)
 end
 
 failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED
