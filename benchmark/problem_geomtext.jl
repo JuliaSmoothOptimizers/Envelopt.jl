@@ -8,7 +8,7 @@ using Envelopt
 include("vectorized_proximable.jl")
 
 REDUCE_PROBLEM_SIZE = true
-pipa_data_folder = "../PIPA-master/data_geo_text"
+pipa_data_folder = "PIPA-master/data_geo_text"
 
 function make_pipa_F(nrows, ncols)
   # edge detection operator
