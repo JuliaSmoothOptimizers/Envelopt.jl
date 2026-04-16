@@ -7,6 +7,8 @@ using Envelopt
 
 include("vectorized_proximable.jl")
 
+Random.seed!(123456789)
+
 # problem format
 # min <c,x>
 # wrt x
@@ -24,7 +26,7 @@ function solve_conic_problem(prob; tol = 1e-6)
   nvar = length(prob.c)
   model = Model(Clarabel.Optimizer)
   @variable(model, x[1:nvar])
-  @objective(model, Min, sum(prob.c .* x))
+  @objective(model, Min, sum(prob.c .* x) + x[2]^2)
   @constraint(model, sum(prob.A[:, :, i] .* x[i] for i = 1:nvar) - prob.b in prob.K)
   set_attribute(model, "tol_gap_abs", tol)
   set_attribute(model, "tol_gap_rel", tol)
@@ -58,7 +60,7 @@ function example_4_Ramana()
     Fx[8] = -x[2]
     Fx
   end
-  f(x) = -x[2]
+  f(x) = -x[2] + x[2]^2
   x0 = randn(nvar)
   model = ADNLPModel(f, x0)
   hmat = IndPSD()
@@ -87,7 +89,8 @@ stats, status, u = envelopt(
   env_model,
   verbose = true,
   max_outer = 10000,
-  subsolver = TrunkEnveloptSubSolver(env_model),
+  # subsolver = MadNLPEnveloptSubSolver(env_model),
+  subsolver = TronEnveloptSubSolver(env_model),
 )
 @assert status == "first_order"
 x = stats.solution

@@ -141,7 +141,7 @@ function EnveloptNLPModel(
   nx = model.nx
   zvar = zeros(nvar)
   zcon = zeros(nx)
-  Fmodel = ADNLPModel(x -> 0.0, zvar, zvar, zvar, x -> x[1:nx], zcon, zcon)
+  Fmodel = ADNLPModel(x -> 0.0, zvar, zvar, zvar, x -> x[1:nx], zcon, zcon)  # min_{x,r} 0  s.t. x = 0.
   EnveloptNLPModel(model, Fmodel, h; kwargs...)
 end
 
@@ -267,9 +267,9 @@ function EnveloptLBFGSModel(
   env_model::EnveloptNLPModel{T, S, META, NLP, FMODEL, H};
   kwargs...,
 ) where {T, S, META, NLP, FMODEL, H}
-  op = LBFGSOperator(T, get_nvar(env_model); kwargs...)
   inner_model = env_model.model
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
+  op = LBFGSOperator(T, nx; kwargs...)
   v = S(undef, nx)
   hv = S(undef, nx)
   return EnveloptLBFGSModel{T, S, META, NLP, FMODEL, H, typeof(op)}(
@@ -308,9 +308,9 @@ function EnveloptLSR1Model(
   env_model::EnveloptNLPModel{T, S, META, NLP, FMODEL, H};
   kwargs...,
 ) where {T, S, META, NLP, FMODEL, H}
-  op = LSR1Operator(T, get_nvar(env_model); kwargs...)
   inner_model = env_model.model
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
+  op = LSR1Operator(T, nx; kwargs...)
   v = S(undef, nx)
   hv = S(undef, nx)
   return EnveloptLSR1Model{T, S, META, NLP, FMODEL, H, typeof(op)}(
@@ -322,6 +322,17 @@ function EnveloptLSR1Model(
   )
 end
 
+# For a "standard" initial model, we use H + B as approximation of the Hessian of the Lagranagian,
+# where H is the Hessian of f and B is the quasi-Newton approximation of the Hessian of h_μ.
+# If the initial model is an NCLModel, H has the form
+#
+# [ ∇²f   0  ]
+# [  0    ρI ]
+#
+# and our approximation has the form
+#
+# [ ∇²f + B   0  ]  } nx
+# [  0        ρI ].
 NLPModels.hprod!(
   qn_model::EnveloptQuasiNewtonModel,
   x::AbstractVector,
@@ -332,7 +343,7 @@ NLPModels.hprod!(
   inner_model = qn_model.env_model.model
   hprod!(inner_model, x, y, v, hv)  # product with the Hessian of the Lagrangian f(x) - yᵀc(x)
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
-  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the quasi-Newton approximation of the Hessian of g_μ
+  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the quasi-Newton approximation of the Hessian of h_μ
   @views hv[1:nx] .+= qn_model.hv
   return hv
 end
@@ -346,7 +357,7 @@ NLPModels.hprod!(
   inner_model = qn_model.env_model.model
   hprod!(inner_model, x, v, hv)     # product with the Hessian of f
   nx = isa(inner_model, NCLModel) ? inner_model.nx : get_nvar(inner_model)
-  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the LBFGS approximation of the Hessian of g_μ
+  @views hprod!(qn_model.op, x[1:nx], v[1:nx], qn_model.hv)  # product with the LBFGS approximation of the Hessian of h_μ
   @views hv[1:nx] .+= qn_model.hv
   return hv
 end

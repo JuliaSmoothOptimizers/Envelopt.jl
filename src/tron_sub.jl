@@ -33,6 +33,7 @@ function (M::TronEnveloptSubSolver)(
     rtol = 0.0,
     verbose = 0,
     use_only_objgrad = true,
+    max_time = 600.0,
     kwargs...,
   )
   return M.stats

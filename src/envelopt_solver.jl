@@ -68,7 +68,8 @@ function envelopt(
   subsolver_failed = false
   outer_iter = 0
 
-  fval = obj(env_model.model, x)
+  inner_model = env_model.model
+  fval = obj(inner_model, x)
   # We don't have u at this point.
   # To save a prox evaluation, we use h(F(x)) instead of h(u).
   F_val = eval_F(env_model, x)
@@ -107,29 +108,42 @@ function envelopt(
     lift_feasibility = norm(F_val - u)
     kkt = max(stats.dual_feas, stats.primal_feas)
 
-    if verbose
-      log_line *=
-        @sprintf "%-7.1e  %-7.1e  %-7.1e  %-5d  " stats.dual_feas stats.primal_feas lift_feasibility stats.iter
+    feasibility = lift_feasibility
+    if isa(inner_model, NCLModel)
+      nx = inner_model.nx
+      r = x[(nx + 1):end]
+      rNorm = norm(r)
+      feasibility = norm([lift_feasibility, rNorm])
     end
 
-    if lift_feasibility ≤ ptol
+    if verbose
+      log_line *=
+        @sprintf "%-7.1e  %-7.1e  %-7.1e  %-5d  " stats.dual_feas stats.primal_feas feasibility stats.iter
+    end
+
+    if feasibility ≤ ptol
       @. y = env_model.y + (F_val - u) / env_model.μ
       set_multiplier!(env_model, y)
       yNorm = norm(env_model.y)
+      if isa(inner_model, NCLModel)
+        @. inner_model.y += inner_model.ρ * r
+      end
       dtol = max(dtol_min / 2, min(dtol, kkt) / 5)
-      ptol = max(ptol_min / 2, lift_feasibility / 5)
+      ptol = max(ptol_min / 2, feasibility / 5)
       verbose && (log_line *= @sprintf "y\n")
     else
       set_penalty!(env_model, env_model.μ / 5)
-      # dtol *= 5
-      # ptol *= 5
+      if isa(inner_model, NCLModel)
+        # NCLModel uses penalty parameter ρ whereas Envelopt uses μ⁻¹.
+        inner_model.ρ *= 5
+      end
       dtol = max(dtol_min / 2, min(dtol, kkt) / 2)
       ptol = max(ptol_min / 2, lift_feasibility / 2)
       verbose && (log_line *= @sprintf "μ\n")
     end
     verbose && @info log_line
 
-    fval = obj(env_model.model, x)
+    fval = obj(inner_model, x)
     hval = env_model.h(u)
     env_val = obj(env_model, fval, Fμy)
     outer_iter += 1
@@ -140,7 +154,7 @@ function envelopt(
     end
 
     dual_feasible = kkt ≤ dtol_min
-    primal_feasible = lift_feasibility ≤ ptol_min
+    primal_feasible = feasibility ≤ ptol_min
     stationary = dual_feasible && primal_feasible
   end
   verbose && @info log_line

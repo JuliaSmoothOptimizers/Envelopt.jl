@@ -29,9 +29,10 @@ function (M::TrunkEnveloptSubSolver)(
     M.solver,
     EnveloptLSR1Model(env_model),
     M.stats;
-    atol = tol,  # TODO: play with tolerances
-    rtol = 0.0,
-    verbose = 0,
+    atol = 0.0,  # TODO: play with tolerances
+    rtol = tol,
+    verbose = 1,
+    max_iter = 1000,
     kwargs...,
   )
 end
