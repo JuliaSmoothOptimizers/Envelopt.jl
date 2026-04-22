@@ -1,3 +1,5 @@
+import NLPModels
+
 export EnveloptNLPModel, EnveloptLBFGSModel, EnveloptLSR1Model
 export set_penalty!, set_multiplier!
 
@@ -143,6 +145,12 @@ function EnveloptNLPModel(
   zcon = zeros(nx)
   Fmodel = ADNLPModel(x -> 0.0, zvar, zvar, zvar, x -> x[1:nx], zcon, zcon)  # min_{x,r} 0  s.t. x = 0.
   EnveloptNLPModel(model, Fmodel, h; kwargs...)
+end
+
+NLPModels.reset!(env_model::EnveloptNLPModel) = begin
+  NLPModels.reset!(env_model.model)
+  NLPModels.reset!(env_model.F)
+  env_model
 end
 
 @default_counters EnveloptNLPModel model

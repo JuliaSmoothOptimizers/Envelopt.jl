@@ -5,6 +5,7 @@ using MadNLP
 # MadNLP subproblem solver
 mutable struct MadNLPEnveloptSubSolver <: AbstractEnveloptSubSolver
   solver::MadNLPSolver
+  stats::MadNLP.MadNLPExecutionStats
   name::String
 end
 
@@ -13,13 +14,17 @@ function MadNLPEnveloptSubSolver(env_model::EnveloptNLPModel)
   @debug "initializing MADNLP subproblem solver"
   solver =
     MadNLPSolver(env_model, hessian_approximation = MadNLP.CompactLBFGS, print_level = MadNLP.ERROR)
-  return MadNLPEnveloptSubSolver(solver, "MadNLP")
+  stats = MadNLP.MadNLPExecutionStats(solver)
+  return MadNLPEnveloptSubSolver(solver, stats, "MadNLP")
 end
+
+const madnlp_fixed_options = Dict(:max_iter => 100, :dual_initialized => true)
 
 # ... solve
 # FIXME: replace outer_iter and madnlp_y with the Envelopt solver object
 function (M::MadNLPEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
+  x0::AbstractVector,
   outer_iter::Int,
   madnlp_y::AbstractVector;
   kwargs...,
@@ -51,12 +56,24 @@ function (M::MadNLPEnveloptSubSolver)(
     bound_push = 1e-8
   end
 
-  # copy multipliers for warm start
-  if outer_iter > 0
-    copyto!(M.solver.y, madnlp_y)
-  end
+  # # copy multipliers for warm start
+  # if outer_iter > 0
+  #   copyto!(M.solver.y, madnlp_y)
+  # end
 
-  return MadNLP.solve!(M.solver; mu_init = mu_init, bound_push = bound_push, kwargs...)
+  # MadnLP uses info from the problem itself to warm start.
+  # The problem is stored inside the solver.
+  copyto!(get_x0(M.solver.nlp), x0)  # to warm start the next outer iteration
+  copyto!(get_y0(M.solver.nlp), M.stats.multipliers)
+
+  return MadNLP.solve!(
+    M.solver,
+    M.stats;
+    mu_init = mu_init,
+    bound_push = bound_push,
+    madnlp_fixed_options...,
+    kwargs...,
+  )
 end
 
 failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED

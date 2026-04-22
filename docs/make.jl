@@ -67,4 +67,4 @@ makedocs(;
   pages = list_pages(),
 )
 
-deploydocs(; repo = "github.com/JuliaSmoothOptimizers/Envelopt.jl")
+deploydocs(; repo = "github.com/JuliaSmoothOptimizers/Envelopt.jl", push_preview = true)

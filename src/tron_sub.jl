@@ -18,9 +18,12 @@ function TronEnveloptSubSolver(env_model::EnveloptNLPModel)
   return TronEnveloptSubSolver(solver, stats, "Tron")
 end
 
+const tron_fixed_options = Dict(:max_iter => 1000, :use_only_objgrad => true, :max_time => 600.0)
+
 # ... solve
 function (M::TronEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
+  x0::AbstractVector,
   args...;
   tol::Float64 = 1.0e-6,
   kwargs...,
@@ -31,9 +34,8 @@ function (M::TronEnveloptSubSolver)(
     M.stats;
     atol = tol,  # TODO: play with tolerances
     rtol = 0.0,
-    verbose = 0,
-    use_only_objgrad = true,
-    max_time = 600.0,
+    x0 = x0,
+    tron_fixed_options...,
     kwargs...,
   )
   return M.stats

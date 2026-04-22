@@ -49,6 +49,7 @@ function envelopt(
   callback = env_model -> false,  # use to update the model, e.g., if it is an NCLModel
   indent::String = "",
 )
+  NLPModels.reset!(env_model)
   x = get_x0(env_model)
   x0 = copy(x)  # to restore env_model.meta.x0 at the end
   y0 = copy(get_y0(env_model))
@@ -78,9 +79,9 @@ function envelopt(
   yNorm = norm(env_model.y)
 
   if verbose
-    @info @sprintf "%s%-4s  %-8s  %-8s  %-8s  %-7s  %-7s  %-7s  %-7s  %-7s  %-7s  %-7s  %-5s  %-1s\n" indent "iter" "f" "h" "f + h_μ" "‖y‖" "μ" "ϵd" "ϵp" "dfeas" "pfeas" "‖F - u‖" "inner" "type"
+    @info @sprintf "%s%4s  %8s  %8s  %8s  %7s  %7s  %7s  %7s  %7s  %7s  %7s  %5s  %1s\n" indent "iter" "f" "h" "f + h_μ" "‖y‖" "μ" "ϵd" "ϵp" "dfeas" "pfeas" "‖F - u‖" "inner" "type"
     log_line =
-      @sprintf "%s%-4d  %-8.1e  %-8.1e  %-8.1e  %-7.1e  %-7.1e  %-7.1e  %-7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
+      @sprintf "%s%4d  %8.1e  %8.1e  %8.1e  %7.1e  %7.1e  %7.1e  %7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
   end
 
   local stats
@@ -88,8 +89,8 @@ function envelopt(
 
   # FIXME: smarter stopping condition
   while !(stationary || subsolver_failed || outer_iter ≥ max_outer)
-    # solve subproblem
-    stats = subsolver(env_model, outer_iter, madnlp_y; tol = dtol)
+    # solve subproblem with x as initial guess
+    stats = subsolver(env_model, x, outer_iter, madnlp_y; tol = dtol)
     subsolver_failed = failed(stats)
 
     if subsolver_failed
@@ -118,7 +119,7 @@ function envelopt(
 
     if verbose
       log_line *=
-        @sprintf "%-7.1e  %-7.1e  %-7.1e  %-5d  " stats.dual_feas stats.primal_feas feasibility stats.iter
+        @sprintf "%7.1e  %7.1e  %7.1e  %5d  " stats.dual_feas stats.primal_feas feasibility stats.iter
     end
 
     if feasibility ≤ ptol
@@ -150,7 +151,7 @@ function envelopt(
 
     if verbose
       log_line =
-        @sprintf "%s%-4d  %-8.1e  %-8.1e  %-8.1e  %-7.1e  %-7.1e  %-7.1e  %-7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
+        @sprintf "%s%4d  %8.1e  %8.1e  %8.1e  %7.1e  %7.1e  %7.1e  %7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
     end
 
     dual_feasible = kkt ≤ dtol_min

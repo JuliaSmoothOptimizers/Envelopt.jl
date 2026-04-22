@@ -18,9 +18,12 @@ function TrunkEnveloptSubSolver(env_model::EnveloptNLPModel)
   return TrunkEnveloptSubSolver(solver, stats, "Trunk")
 end
 
+const trunk_fixed_options = Dict(:max_iter => 1000)
+
 # ... solve
 function (M::TrunkEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
+  x0::AbstractVector,
   args...;
   tol::Float64 = 1.0e-6,
   kwargs...,
@@ -31,8 +34,8 @@ function (M::TrunkEnveloptSubSolver)(
     M.stats;
     atol = 0.0,  # TODO: play with tolerances
     rtol = tol,
-    verbose = 1,
-    max_iter = 1000,
+    x0 = x0,
+    trunk_fixed_options...,
     kwargs...,
   )
 end
