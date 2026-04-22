@@ -34,7 +34,7 @@ function (M::TrunkEnveloptSubSolver)(
     M.stats;
     atol = 0.0,  # TODO: play with tolerances
     rtol = tol,
-    x0 = x0,
+    x = x0,
     trunk_fixed_options...,
     kwargs...,
   )

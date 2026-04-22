@@ -34,7 +34,7 @@ function (M::TronEnveloptSubSolver)(
     M.stats;
     atol = tol,  # TODO: play with tolerances
     rtol = 0.0,
-    x0 = x0,
+    x = x0,
     tron_fixed_options...,
     kwargs...,
   )
