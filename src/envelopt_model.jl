@@ -331,7 +331,7 @@ function EnveloptLSR1Model(
   )
 end
 
-# For a "standard" initial model, we use H + B as approximation of the Hessian of the Lagranagian,
+# For a "standard" initial model, we use H + B as approximation of the Hessian of the Lagrangian,
 # where H is the Hessian of f and B is the quasi-Newton approximation of the Hessian of h_μ.
 # If the initial model is an NCLModel, H has the form
 #

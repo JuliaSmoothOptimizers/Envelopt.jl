@@ -26,6 +26,7 @@ function exact_penalty_solver(
   Fmodel = EqualityFeasibilityModel(snlp)
   @assert equality_constrained(Fmodel)
 
+  # FIXME: hardwire MadNLP for now.
   # select subsolver, depending on constraints left in model
   # if has_inequalities(model)
   EnveloptSubSolver = MadNLPEnveloptSubSolver

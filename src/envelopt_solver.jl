@@ -144,7 +144,7 @@ function envelopt(
         inner_model.ρ *= 5
       end
       dtol = max(dtol_min / 2, min(dtol, kkt) / 2)
-      ptol = max(ptol_min / 2, lift_feasibility / 2)
+      ptol = max(ptol_min / 2, feasibility / 2)
       verbose && (log_line *= @sprintf "μ\n")
     end
     verbose && @info log_line

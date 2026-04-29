@@ -26,7 +26,7 @@ function solve_conic_problem(prob; tol = 1e-6)
   nvar = length(prob.c)
   model = Model(Clarabel.Optimizer)
   @variable(model, x[1:nvar])
-  @objective(model, Min, sum(prob.c .* x) + x[2]^2)
+  @objective(model, Min, sum(prob.c .* x))
   @constraint(model, sum(prob.A[:, :, i] .* x[i] for i = 1:nvar) - prob.b in prob.K)
   set_attribute(model, "tol_gap_abs", tol)
   set_attribute(model, "tol_gap_rel", tol)
@@ -60,7 +60,7 @@ function example_4_Ramana()
     Fx[8] = -x[2]
     Fx
   end
-  f(x) = -x[2] #+ x[2]^2
+  f(x) = -x[2]
   x0 = randn(nvar)
   model = ADNLPModel(f, x0)
   hmat = IndPSD()

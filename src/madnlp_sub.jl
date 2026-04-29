@@ -55,7 +55,7 @@ function (M::MadNLPEnveloptSubSolver)(
     bound_push = 1e-8
   end
 
-  # MadnLP uses info from the problem itself to warm start.
+  # MadNLP uses info from the problem itself to warm start.
   # The problem is stored inside the solver.
   copyto!(get_x0(M.solver.nlp), x0)  # to warm start the next outer iteration
   copyto!(get_y0(M.solver.nlp), M.stats.multipliers)
