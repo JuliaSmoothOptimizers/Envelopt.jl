@@ -93,3 +93,22 @@ end
   stats, status, u = envelopt(env_model, verbose = false)
   @test status == "first_order"
 end
+
+@testitem "test complementarity problem with NCL" tags=[:solvers, :constrained, :mpcc] begin
+  using ADNLPModels, NCL, ProximalOperators
+  # min (x₁ - 1)² + (x₂ - 1)²  s.t. x₁ * x₂ = 0, x₁ ≥ 0, x₂ \geq 0.
+  model = ADNLPModel(
+    x -> (x[1] - 1.0)^2 + (x[2] - x[1]^2)^2,
+    [1.2; 1.2],
+    [0.0, 0.0],
+    [Inf, Inf],
+    x -> [x[1] * x[2]],
+    [0.0],
+    [0.0],
+  )
+  ncl_model = NCLModel(model)
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(ncl_model, h)  # F(x, r) = x and μ = 1 by default
+  stats, status, u = envelopt(env_model, verbose = false)
+  @test status == "first_order"
+end
