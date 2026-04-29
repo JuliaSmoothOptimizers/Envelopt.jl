@@ -27,13 +27,13 @@ function exact_penalty_solver(
   @assert equality_constrained(Fmodel)
 
   # select subsolver, depending on constraints left in model
-  if has_inequalities(model)
-    EnveloptSubSolver = MadNLPEnveloptSubSolver
-  elseif has_bounds(model)
-    EnveloptSubSolver = TronEnveloptSubSolver
-  else
-    EnveloptSubSolver = TrunkEnveloptSubSolver
-  end
+  # if has_inequalities(model)
+  EnveloptSubSolver = MadNLPEnveloptSubSolver
+  # elseif has_bounds(model)
+  #   EnveloptSubSolver = TronEnveloptSubSolver
+  # else
+  #   EnveloptSubSolver = TrunkEnveloptSubSolver
+  # end
 
   if penalty == NormL1
     dual_norm = NormLinf(1.0)
