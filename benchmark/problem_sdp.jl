@@ -60,7 +60,7 @@ function example_4_Ramana()
     Fx[8] = -x[2]
     Fx
   end
-  f(x) = -x[2] + x[2]^2
+  f(x) = -x[2] #+ x[2]^2
   x0 = randn(nvar)
   model = ADNLPModel(f, x0)
   hmat = IndPSD()
@@ -89,8 +89,9 @@ stats, status, u = envelopt(
   env_model,
   verbose = true,
   max_outer = 10000,
-  # subsolver = MadNLPEnveloptSubSolver(env_model),
-  subsolver = TronEnveloptSubSolver(env_model),
+  subsolver = MadNLPEnveloptSubSolver(env_model),
+  # subsolver = TrunkEnveloptSubSolver(env_model),
+  # subsolver = TronEnveloptSubSolver(env_model),
 )
 @assert status == "first_order"
 x = stats.solution
