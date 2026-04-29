@@ -3,5 +3,5 @@
   using OptimizationProblems, OptimizationProblems.ADNLPProblems
   nlp = hs8()
   stats, pfeas = exact_penalty_solver(nlp, NormL2, verbose = false, sub_verbose = false)
-  @test stats.status == :first_order
+  @test Envelopt.first_order(stats)
 end

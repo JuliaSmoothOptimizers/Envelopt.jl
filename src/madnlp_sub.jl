@@ -25,8 +25,7 @@ const madnlp_fixed_options = Dict(:max_iter => 100, :dual_initialized => true)
 function (M::MadNLPEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
   x0::AbstractVector,
-  outer_iter::Int,
-  madnlp_y::AbstractVector;
+  outer_iter::Int;
   kwargs...,
 )
   # FIXME: initialize solver outside the loop only and reuse.
@@ -56,17 +55,12 @@ function (M::MadNLPEnveloptSubSolver)(
     bound_push = 1e-8
   end
 
-  # # copy multipliers for warm start
-  # if outer_iter > 0
-  #   copyto!(M.solver.y, madnlp_y)
-  # end
-
   # MadnLP uses info from the problem itself to warm start.
   # The problem is stored inside the solver.
   copyto!(get_x0(M.solver.nlp), x0)  # to warm start the next outer iteration
   copyto!(get_y0(M.solver.nlp), M.stats.multipliers)
 
-  return MadNLP.solve!(
+  MadNLP.solve!(
     M.solver,
     M.stats;
     mu_init = mu_init,
@@ -74,6 +68,8 @@ function (M::MadNLPEnveloptSubSolver)(
     madnlp_fixed_options...,
     kwargs...,
   )
+  return M.stats
 end
 
 failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED
+first_order(stats::MadNLP.MadNLPExecutionStats) = stats.status == MadNLP.SOLVE_SUCCEEDED

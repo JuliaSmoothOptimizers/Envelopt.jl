@@ -4,6 +4,7 @@ export envelopt
 abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
+first_order(stats::GenericExecutionStats) = stats.status == :first_order
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
 include("tron_sub.jl")
@@ -50,9 +51,17 @@ function envelopt(
   indent::String = "",
 )
   NLPModels.reset!(env_model)
+  NLPModels.reset!(env_model.model)
+  NLPModels.reset!(env_model.F)
+
   x = get_x0(env_model)
   x0 = copy(x)  # to restore env_model.meta.x0 at the end
   y0 = copy(get_y0(env_model))
+  # set_constraint_multipliers!(subsolver.stats, y0)
+  subsolver.stats.multipliers .= y0
+  subsolver.stats.multipliers_L .= 0
+  subsolver.stats.multipliers_U .= 0
+
   T = eltype(x)
   set_multiplier!(env_model, zero(T))  # FIXME: smarter initialization
   set_penalty!(env_model, one(T))      # initial penalty
@@ -84,13 +93,12 @@ function envelopt(
       @sprintf "%s%4d  %8.1e  %8.1e  %8.1e  %7.1e  %7.1e  %7.1e  %7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
   end
 
-  local stats
-  madnlp_y = similar(get_y0(env_model))  # to warm start dual variables; remove when solver is initialized outside the loop
+  stats = subsolver.stats
 
   # FIXME: smarter stopping condition
   while !(stationary || subsolver_failed || outer_iter ≥ max_outer)
     # solve subproblem with x as initial guess
-    stats = subsolver(env_model, x, outer_iter, madnlp_y; tol = dtol)
+    subsolver(env_model, x, outer_iter; tol = dtol)
     subsolver_failed = failed(stats)
 
     if subsolver_failed
@@ -98,9 +106,6 @@ function envelopt(
       # FIXME: try to recover
       continue
     end
-
-    copyto!(get_x0(env_model), stats.solution)  # to warm start the next outer iteration
-    copyto!(madnlp_y, stats.multipliers)  # to warm start the next outer iteration
 
     x .= stats.solution
     eval_F!(env_model, x, F_val)
