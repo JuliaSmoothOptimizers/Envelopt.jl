@@ -5,6 +5,7 @@ abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
 first_order(stats::GenericExecutionStats) = stats.status == :first_order
+include("ipopt_sub.jl")
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
 include("tron_sub.jl")

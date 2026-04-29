@@ -31,6 +31,16 @@ end
   @test Envelopt.first_order(stats)
 end
 
+@testitem "single subproblem solve with IPOPT" tags=[:solver, :unconstrained, :ipopt] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
+  ipopt_solver = IPOPTEnveloptSubSolver(env_model)
+  stats = ipopt_solver(env_model, get_x0(env_model), 0, tol = 1.0e-2)
+  @test Envelopt.first_order(stats)
+end
+
 @testitem "simple solve with MadNLP" tags=[:solver, :unconstrained, :madnlp] begin
   using ADNLPModels, MadNLP, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
@@ -40,6 +50,16 @@ end
     MadNLPSolver(env_model; hessian_approximation = MadNLP.CompactLBFGS, print_level = MadNLP.ERROR)
   stats = solve!(mad_solver)
   @test stats.status == MadNLP.SOLVE_SUCCEEDED
+end
+
+@testitem "simple unconstrained envelopt solve with IPOPT" tags=[:solver, :unconstrained, :ipopt] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
+  stats, status, u =
+    envelopt(env_model, subsolver = IPOPTEnveloptSubSolver(env_model), verbose = false)
+  @test status == "first_order"
 end
 
 @testitem "simple unconstrained envelopt solve with MadNLP" tags=[:solver, :unconstrained, :madnlp] begin
@@ -85,12 +105,22 @@ end
   @test status == "first_order"
 end
 
-@testitem "test constrained problem" tags=[:solvers, :constrained, :madnlp] begin
+@testitem "test constrained problem with MadNLP" tags=[:solvers, :constrained, :madnlp] begin
   using ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs13()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u = envelopt(env_model, verbose = false)
+  @test status == "first_order"
+end
+
+@testitem "test constrained problem with IPOPT" tags=[:solvers, :constrained, :ipopt] begin
+  using ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  model = hs13()
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
+  stats, status, u =
+    envelopt(env_model, subsolver = IPOPTEnveloptSubSolver(env_model), verbose = false)
   @test status == "first_order"
 end
 
