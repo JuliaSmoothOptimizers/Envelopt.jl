@@ -65,7 +65,7 @@ function (sub::IPOPTEnveloptSubSolver)(
     sub.solver,
     env_model,
     sub.stats;
-    warm_start_init_point = outer_iter > 1 ? "yes" : "no",
+    warm_start_init_point = outer_iter > 0 ? "yes" : "no",
     x0 = x0,
     y0 = y0,
     zL0 = zL0,
