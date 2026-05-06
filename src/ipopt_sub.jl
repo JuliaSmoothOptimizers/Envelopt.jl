@@ -50,6 +50,7 @@ function (sub::IPOPTEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
   x0::AbstractVector,
   outer_iter::Int;
+  tol::Float64 = 1.0e-6,
   kwargs...,
 )
 
@@ -71,6 +72,7 @@ function (sub::IPOPTEnveloptSubSolver)(
     zL0 = zL0,
     zU0 = zU0,
     mu_init = mu_init,
+    tol = tol,
     ipopt_fixed_options...,
     kwargs...,
   )

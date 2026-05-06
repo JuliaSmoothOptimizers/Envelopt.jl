@@ -26,6 +26,7 @@ function (M::MadNLPEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
   x0::AbstractVector,
   outer_iter::Int;
+  tol::Float64 = 1.0e-6,
   kwargs...,
 )
   # FIXME: initialize solver outside the loop only and reuse.
@@ -65,6 +66,7 @@ function (M::MadNLPEnveloptSubSolver)(
     M.stats;
     mu_init = mu_init,
     bound_push = bound_push,
+    tol = tol,
     madnlp_fixed_options...,
     kwargs...,
   )

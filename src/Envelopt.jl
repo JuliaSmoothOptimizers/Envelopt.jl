@@ -22,4 +22,13 @@ include("remove_eqs.jl")
 
 include("penalty.jl")
 
+# Extensions
+export KnitroEnveloptSubSolver
+
+function KnitroEnveloptSubSolver(args...; kwargs...)
+  error(
+    "Knitro support is not loaded. Install and load KNITRO.jl and NLPModelsKnitro.jl to use KnitroEnveloptSubSolver.",
+  )
+end
+
 end

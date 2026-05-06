@@ -127,9 +127,8 @@ end
 
 # By default, F(x) = x.
 function EnveloptNLPModel(model::M, h::H; kwargs...) where {T, S, M <: AbstractNLPModel{T, S}, H}
-  nvar = get_nvar(model)
-  z = zeros(nvar)
-  Fmodel = ADNLPModel(x -> 0.0, z, z, z, x -> x, z, z)
+  z = fill!(similar(get_x0(model)), zero(T))
+  Fmodel = ADNLPModel(x -> zero(T), z, z, z, x -> x, z, z)
   EnveloptNLPModel(model, Fmodel, h; kwargs...)
 end
 
@@ -407,27 +406,31 @@ end
 NLPModels.cons!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
   cons!(model.model, x, c)
 
-# May need to be defined too in case some NLPModels don't implement the lin/nln parts separately.
-#
-# NLPModels.jac_structure!(
-#   model::EnveloptNLPModel,
-#   rows::AbstractVector,
-#   cols::AbstractVector,
-# ) = jac_structure!(model.model, rows, cols)
-#
-# NLPModels.jprod!(
-#   model::EnveloptNLPModel,
-#   x::AbstractVector,
-#   v::AbstractVector,
-#   jv::AbstractVector,
-# ) = jprod!(model.model, x, v, jv)
-#
-# NLPModels.jtprod!(
-#   model::EnveloptNLPModel,
-#   x::AbstractVector,
-#   v::AbstractVector,
-#   jtv::AbstractVector,
-# ) = jtprod!(model.model, x, v, jtv)
+NLPModels.cons_lin!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
+  cons_lin!(model.model, x, c)
+
+NLPModels.cons_nln!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
+  cons_nln!(model.model, x, c)
+
+# Need to be defined too in case some NLPModels don't implement the lin/nln parts separately.
+# E.g., AmplModels at the moment.
+
+NLPModels.jac_structure!(model::EnveloptNLPModel, rows::AbstractVector, cols::AbstractVector) =
+  jac_structure!(model.model, rows, cols)
+
+NLPModels.jprod!(
+  model::EnveloptNLPModel,
+  x::AbstractVector,
+  v::AbstractVector,
+  jv::AbstractVector,
+) = jprod!(model.model, x, v, jv)
+
+NLPModels.jtprod!(
+  model::EnveloptNLPModel,
+  x::AbstractVector,
+  v::AbstractVector,
+  jtv::AbstractVector,
+) = jtprod!(model.model, x, v, jtv)
 
 NLPModels.jac_lin_structure!(model::EnveloptNLPModel, rows::AbstractVector, cols::AbstractVector) =
   jac_lin_structure!(model.model, rows, cols)
