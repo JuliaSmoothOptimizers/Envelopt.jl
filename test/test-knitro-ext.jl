@@ -1,17 +1,17 @@
 @testmodule KnitroHelper begin
   using KNITRO
 
-  knitro_available() = begin
+  knitro_available = begin
     try
       # KNITRO.has_knitro() returns true even if there is no valid license, and seems fairly useless
       KNITRO.KN_free(KNITRO.KN_new())
-      return true
+      true
     catch
-      return false
+      false
     end
   end
 
-  println("KNITRO available: ", knitro_available())
+  println("KNITRO available: ", knitro_available)
 end
 
 @testitem "Knitro not available by default" tags=[:solver, :knitro] begin
@@ -23,7 +23,7 @@ end
   :unconstrained,
   :knitro,
 ] begin
-  if KnitroHelper.knitro_available()
+  if KnitroHelper.knitro_available
     using ADNLPModels, KNITRO, NLPModels, NLPModelsKnitro, ProximalOperators
     model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
     h = NormL1(1.0)
@@ -41,7 +41,7 @@ end
   :unconstrained,
   :knitro,
 ] begin
-  if KnitroHelper.knitro_available()
+  if KnitroHelper.knitro_available
     using ADNLPModels, KNITRO, NLPModelsKnitro, ProximalOperators
     model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
     h = NormL1(1.0)
@@ -56,10 +56,10 @@ end
 
 @testitem "simple bound-constrained envelopt solve with Knitro" setup=[KnitroHelper] tags=[
   :solver,
-  :bound_constrained,
+  :boundconstrained,
   :knitro,
 ] begin
-  if KnitroHelper.knitro_available()
+  if KnitroHelper.knitro_available
     using ADNLPModels, KNITRO, NLPModelsKnitro, ProximalOperators
     using OptimizationProblems, OptimizationProblems.ADNLPProblems
     model = hs1()
@@ -78,7 +78,7 @@ end
   :constrained,
   :knitro,
 ] begin
-  if KnitroHelper.knitro_available()
+  if KnitroHelper.knitro_available
     using ADNLPModels, KNITRO, NLPModelsKnitro, ProximalOperators
     using OptimizationProblems, OptimizationProblems.ADNLPProblems
     model = hs13()

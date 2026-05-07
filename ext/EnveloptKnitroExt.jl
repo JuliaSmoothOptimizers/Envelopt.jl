@@ -19,7 +19,7 @@ function Envelopt.KnitroEnveloptSubSolver(env_model::EnveloptNLPModel; linear_ap
   @debug "initializing Knitro subproblem solver"
   solver = KnitroSolver(env_model; linear_api = linear_api)
   stats = GenericExecutionStats(env_model)
-  z = similar(get_x0(env_model))
+  z = fill!(similar(get_x0(env_model)), 0)
   return KnitroEnveloptSubSolver(solver, stats, "Knitro", z)
 end
 
