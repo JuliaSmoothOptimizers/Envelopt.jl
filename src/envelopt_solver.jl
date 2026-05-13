@@ -182,6 +182,10 @@ function envelopt(
   copyto!(get_x0(env_model), x0)  # restore env_model.meta.x0
   copyto!(get_y0(env_model), y0)  # restore env_model.meta.y0
 
+  fx = obj(env_model.model, stats.solution)
+  hu = env_model.h(u)
+  stats.objective = fx + hu
+
   # TODO: return u in stats?
   return stats, status, u
 end
