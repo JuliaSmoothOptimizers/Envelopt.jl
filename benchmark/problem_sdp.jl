@@ -7,8 +7,6 @@ using Envelopt
 
 include("vectorized_proximable.jl")
 
-Random.seed!(123456789)
-
 # problem format
 # min <c,x>
 # wrt x
@@ -33,7 +31,7 @@ function solve_conic_problem(prob; tol = 1e-6)
   set_attribute(model, "tol_feas", tol)
   optimize!(model)
   xval = value.(x)
-  objval = sum(prob.c .* x)
+  objval = sum(prob.c .* xval)
   return xval, objval
 end
 
@@ -83,15 +81,19 @@ function example_4_Ramana_JuMP()
   return prob
 end
 
+Random.seed!(123) # seed for reproducibility
+
+TOL = 1e-5
+
 # solve with Envelopt
 env_model = example_4_Ramana()
-stats, status, u = envelopt(
+stats, status, u, tot_inner_iter = envelopt(
   env_model,
   verbose = true,
-  max_outer = 10000,
-  subsolver = MadNLPEnveloptSubSolver(env_model),
-  # subsolver = TrunkEnveloptSubSolver(env_model),
-  # subsolver = TronEnveloptSubSolver(env_model),
+  max_outer = 1000,
+  dtol_min = TOL,
+  ptol_min = TOL,
+  subsolver = IPOPTEnveloptSubSolver(env_model),
 )
 @assert status == "first_order"
 x = stats.solution
@@ -99,5 +101,5 @@ display(x)
 
 # solve with Clarabel
 problem = example_4_Ramana_JuMP()
-x, fx = solve_conic_problem(problem)
+x, fx = solve_conic_problem(problem, tol = TOL)
 display(x)
