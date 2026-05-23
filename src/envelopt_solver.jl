@@ -95,12 +95,16 @@ function envelopt(
   end
 
   stats = subsolver.stats
+  tot_inner_iter = 0
+  tot_iter = 0
 
   # FIXME: smarter stopping condition
   while !(stationary || subsolver_failed || outer_iter ≥ max_outer)
     # solve subproblem with x as initial guess
     subsolver(env_model, x, outer_iter; tol = dtol)
     subsolver_failed = failed(stats)
+    tot_inner_iter += stats.iter
+    tot_iter += 1
 
     if subsolver_failed
       verbose && @error "subproblem solver fails with" stats.status
@@ -185,7 +189,8 @@ function envelopt(
   fx = obj(env_model.model, stats.solution)
   hu = env_model.h(u)
   stats.objective = fx + hu
+  stats.iter = tot_iter
 
   # TODO: return u in stats?
-  return stats, status, u
+  return stats, status, u, tot_inner_iter
 end
