@@ -1,5 +1,5 @@
 using ProximalOperators, ADNLPModels
-using Random
+using LinearAlgebra, Random, Statistics
 
 using Envelopt
 
@@ -78,28 +78,62 @@ function eval_constraints!(cx, x, nobs, nsym, Aobs, bobs, Asym)
   return cx
 end
 
+Random.seed!(123) # seed for reproducibility
+
 N = 10
-dim = 2
+dim = 5
 nvar = N * N
 nsym = Int(N * (N - 1) / 2)
 nobs = Int(floor((nvar - nsym) / 3))
 ncon = nobs + nsym
 
+ntrials = 100
+res = (
+  iter = zeros(ntrials),
+  inner_iter = zeros(ntrials),
+  rank_x = zeros(ntrials),
+  rank_u = zeros(ntrials),
+)
+
 f(x) = 0
-x0 = randn(nvar)
-iobs, jobs, vobs = sampled_distance_matrix(N, nobs, dim)
-Aobs, bobs = obs_constraints(N, iobs, jobs, vobs)
-Asym = sym_constraints(N)
-c!(cx, x) = eval_constraints!(cx, x, nobs, nsym, Aobs, bobs, Asym)
-model = ADNLPModel!(f, x0, c!, zeros(ncon), zeros(ncon))
 gmat = NuclearNorm(1.0)
 g = VectorizedProximable(gmat, N, N)
 
-env_model = EnveloptNLPModel(model, g)
-stats, status, u = envelopt(env_model, verbose = true, max_outer = 30)
-@assert status == "first_order"
-x = stats.solution
-xmat = reshape(x, (N, N))
-println("Rank of x = $(rank(xmat))")
-umat = reshape(u, (N, N))
-println("Rank of u = $(rank(umat))")
+for i = 1:ntrials
+  println("--------------------")
+  println("problem #$(i) / $(ntrials)")
+  x0 = randn(nvar)
+  iobs, jobs, vobs = sampled_distance_matrix(N, nobs, dim)
+  Aobs, bobs = obs_constraints(N, iobs, jobs, vobs)
+  Asym = sym_constraints(N)
+  c!(cx, x) = eval_constraints!(cx, x, nobs, nsym, Aobs, bobs, Asym)
+  model = ADNLPModel!(f, x0, c!, zeros(ncon), zeros(ncon))
+
+  env_model = EnveloptNLPModel(model, g)
+  stats, status, u, tot_inner_iter = envelopt(env_model, verbose = true, max_outer = 30)
+  x = stats.solution
+
+  res.iter[i] = stats.iter
+  res.inner_iter[i] = tot_inner_iter
+  if status == "first_order"
+    xmat = reshape(x, (N, N))
+    rank_x = rank(xmat)
+    println("Rank of x = $(rank_x)")
+    res.rank_x[i] = rank_x
+    umat = reshape(u, (N, N))
+    rank_u = rank(umat)
+    println("Rank of u = $(rank_u)")
+    res.rank_u[i] = rank_u
+  else
+    @warn "failed problem"
+    res.rank_x[i] = NaN
+    res.rank_u[i] = NaN
+  end
+end
+
+is_problem_solved = .!(isnan.(res.rank_u))
+println("$(ntrials) trials")
+println("- improved rank $(sum((res.rank_u[is_problem_solved] .< N)))")
+println("- failed $(ntrials-sum(is_problem_solved))")
+println("Median iterations: $(median(res.iter[is_problem_solved]))")
+println("Median inner iterations: $(median(res.inner_iter[is_problem_solved]))")

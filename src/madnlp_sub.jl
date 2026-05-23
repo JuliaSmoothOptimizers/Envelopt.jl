@@ -18,7 +18,7 @@ function MadNLPEnveloptSubSolver(env_model::EnveloptNLPModel)
   return MadNLPEnveloptSubSolver(solver, stats, "MadNLP")
 end
 
-const madnlp_fixed_options = Dict(:max_iter => 100, :dual_initialized => true)
+const madnlp_fixed_options = Dict(:max_iter => 1000, :dual_initialized => true)
 
 # ... solve
 # FIXME: replace outer_iter and madnlp_y with the Envelopt solver object
