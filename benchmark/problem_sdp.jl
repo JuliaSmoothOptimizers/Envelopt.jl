@@ -2,6 +2,7 @@ using ProximalOperators, ADNLPModels
 using Random
 using JuMP
 import Clarabel
+import SCS
 
 using Envelopt
 
@@ -20,15 +21,23 @@ struct ConicProblem <: AbstractConicProblem
   K
 end
 
-function solve_conic_problem(prob; tol = 1e-6)
+function solve_conic_problem(prob; tol = 1e-6, optimizer = Clarabel.Optimizer)
   nvar = length(prob.c)
-  model = Model(Clarabel.Optimizer)
+  model = Model(optimizer)
   @variable(model, x[1:nvar])
   @objective(model, Min, sum(prob.c .* x))
   @constraint(model, sum(prob.A[:, :, i] .* x[i] for i = 1:nvar) - prob.b in prob.K)
-  set_attribute(model, "tol_gap_abs", tol)
-  set_attribute(model, "tol_gap_rel", tol)
-  set_attribute(model, "tol_feas", tol)
+  if optimizer == Clarabel.Optimizer
+    set_attribute(model, "tol_gap_abs", tol)
+    set_attribute(model, "tol_gap_rel", 0.0)
+    set_attribute(model, "tol_feas", 0.0)
+  elseif optimizer == SCS.Optimizer
+    set_attribute(model, "eps_abs", tol)
+    set_attribute(model, "eps_rel", 0.0)
+    set_attribute(model, "eps_infeas", 0.0)
+  else
+    @warn "Unknown optimizer $(optimizer)"
+  end
   optimize!(model)
   xval = value.(x)
   objval = sum(prob.c .* xval)
@@ -90,7 +99,6 @@ env_model = example_4_Ramana()
 stats, status, u, tot_inner_iter = envelopt(
   env_model,
   verbose = true,
-  max_outer = 1000,
   dtol_min = TOL,
   ptol_min = TOL,
   subsolver = IPOPTEnveloptSubSolver(env_model),
@@ -101,5 +109,9 @@ display(x)
 
 # solve with Clarabel
 problem = example_4_Ramana_JuMP()
-x, fx = solve_conic_problem(problem, tol = TOL)
+x, fx = solve_conic_problem(problem, tol = TOL, optimizer = Clarabel.Optimizer)
+display(x)
+
+# solve with SCS
+x, fx = solve_conic_problem(problem, tol = TOL, optimizer = SCS.Optimizer)
 display(x)
