@@ -36,7 +36,7 @@ res = (
 h = NormL1(1.0)
 
 for i = 1:ntrials
-  x0 = randn(2)
+  x0 = 10 * randn(2)
 
   model = ADNLPModel(
     x -> (x[1] - 1)^2 + (x[2] - 1)^2,
@@ -130,6 +130,6 @@ end
 
 for k in keys(res)
   println(
-    "$(k): $(sum(res[k] .== 0)) local sol / $(sum(res[k] .== -1)) unexpected sol/ $(sum(res[k] .== -2)) failed",
+    "$(k): $(sum(res[k] .> 0)) global sol / $(sum(res[k] .== 0)) local max / $(sum(res[k] .== -1)) unexpected sol/ $(sum(res[k] .== -2)) failed",
   )
 end
