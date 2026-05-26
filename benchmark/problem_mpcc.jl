@@ -1,6 +1,6 @@
 using ProximalOperators, ADNLPModels
 using Random, LinearAlgebra
-using NCL, MadNLP
+using NCL, MadNLP, NLPModelsIpopt
 
 using Envelopt
 
@@ -22,11 +22,30 @@ function which_expected_solution(x, tol = 1e-2)
   end
 end
 
-Random.seed!(123)
+function process_output(stats)
+  is_solved = if stats.status == :first_order
+    true
+  elseif stats.status == MadNLP.Status(1)
+    true
+  else
+    false
+  end
+  flag = if is_solved
+    which_expected_solution(stats.solution[1:2])
+  else
+    -2
+  end
+  display(stats.solution)
+  display(stats.objective)
+  flag
+end
+
+Random.seed!(123) # seed for reproducibility
 
 ntrials = 100
 res = (
   madnlp = zeros(ntrials),
+  ipopt = zeros(ntrials),
   envelopt = zeros(ntrials),
   ncl = zeros(ntrials),
   ncl_envelopt = zeros(ntrials),
@@ -66,46 +85,26 @@ for i = 1:ntrials
     tol = 1e-6,
   )
   stats = MadNLP.solve!(madnlp_solver)
-  if stats.status == MadNLP.Status(1)
-    res.madnlp[i] = which_expected_solution(stats.solution)
-  else
-    res.madnlp[i] = -2
-  end
-  display(stats.solution)
-  display(stats.objective)
+  res.madnlp[i] = process_output(stats)
+
+  # with Ipopt
+  stats = ipopt(fullmodel, warm_start_init_point = "yes")
+  res.ipopt[i] = process_output(stats)
 
   # with Envelopt
   env_model = EnveloptNLPModel(model, h)
   stats, status, u = envelopt(env_model, verbose = true)
-  if status == "first_order"
-    res.envelopt[i] = which_expected_solution(stats.solution)
-  else
-    res.envelopt[i] = -2
-  end
-  display(stats.solution)
-  display(stats.objective)
+  res.envelopt[i] = process_output(stats)
 
   # with NCL
   stats = NCLSolve(fullmodel)
-  if stats.status == :first_order
-    res.ncl[i] = which_expected_solution(stats.solution)
-  else
-    res.ncl[i] = -2
-  end
-  display(stats.solution)
-  display(stats.objective)
+  res.ncl[i] = process_output(stats)
 
   # with NCL+Envelopt
   ncl_model = NCLModel(model)
   env_ncl_model = EnveloptNLPModel(ncl_model, h)
   stats, status, u = envelopt(env_ncl_model, verbose = true)
-  if status == "first_order"
-    res.ncl_envelopt[i] = which_expected_solution(stats.solution[1:2])
-  else
-    res.ncl_envelopt[i] = -2
-  end
-  display(stats.solution)
-  display(stats.objective)
+  res.ncl_envelopt[i] = process_output(stats)
 
   # with Envelopt on different formulation (to obtain NCL-like regularization)
   model_ind = ADNLPModel(x -> (x[1] - 1)^2 + (x[2] - 1)^2, x0, [0.0, 0.0], [Inf, Inf])
@@ -119,13 +118,7 @@ for i = 1:ntrials
   h_ind = SlicedSeparableSum((h, IndZero()), ((1:2,), (3,)))
   env_model_ind = EnveloptNLPModel(model_ind, Fmodel_ind, h_ind)
   stats, status, u_ind = envelopt(env_model_ind, verbose = true, max_outer = 100)
-  if status == "first_order"
-    res.ind_envelopt[i] = which_expected_solution(stats.solution)
-  else
-    res.ind_envelopt[i] = -2
-  end
-  display(stats.solution)
-  display(stats.objective)
+  res.ind_envelopt[i] = process_output(stats)
 end
 
 for k in keys(res)
