@@ -80,6 +80,7 @@ end
 
 Random.seed!(123) # seed for reproducibility
 
+TOL = 1e-6
 N = 10
 dim = 5
 nvar = N * N
@@ -110,11 +111,11 @@ for i = 1:ntrials
   model = ADNLPModel!(f, x0, c!, zeros(ncon), zeros(ncon))
 
   env_model = EnveloptNLPModel(model, g)
-  stats, status, u, tot_inner_iter = envelopt(env_model, verbose = true, max_outer = 30)
+  stats, status, u, inner_iter = envelopt(env_model, verbose = true, dtol_min = TOL, ptol_min = TOL)
   x = stats.solution
 
   res.iter[i] = stats.iter
-  res.inner_iter[i] = tot_inner_iter
+  res.inner_iter[i] = inner_iter
   if status == "first_order"
     xmat = reshape(x, (N, N))
     rank_x = rank(xmat)
@@ -136,4 +137,6 @@ println("$(ntrials) trials")
 println("- improved rank $(sum((res.rank_u[is_problem_solved] .< N)))")
 println("- failed $(ntrials-sum(is_problem_solved))")
 println("Median iterations: $(median(res.iter[is_problem_solved]))")
+println("Max iterations: $(maximum(res.iter[is_problem_solved]))")
 println("Median inner iterations: $(median(res.inner_iter[is_problem_solved]))")
+println("Max inner iterations: $(maximum(res.inner_iter[is_problem_solved]))")
