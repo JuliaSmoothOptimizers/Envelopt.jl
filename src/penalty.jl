@@ -5,7 +5,8 @@ function exact_penalty_solver(
   nlp::AbstractNLPModel,
   penalty = NormL2;
   verbose = true,
-  sub_verbose = true,
+  sub_verbose = false,
+  sub_solver = MadNLPEnveloptSubSolver,
 )
   (unconstrained(nlp) || bound_constrained(nlp)) &&
     error("exact penalty solver only supports constrained problems")
@@ -29,12 +30,13 @@ function exact_penalty_solver(
   # FIXME: hardwire MadNLP for now.
   # select subsolver, depending on constraints left in model
   # if has_inequalities(model)
-  EnveloptSubSolver = MadNLPEnveloptSubSolver
+  #EnveloptSubSolver = MadNLPEnveloptSubSolver
   # elseif has_bounds(model)
-  #   EnveloptSubSolver = TronEnveloptSubSolver
+  #     EnveloptSubSolver = TronEnveloptSubSolver
   # else
   #   EnveloptSubSolver = TrunkEnveloptSubSolver
   # end
+  EnveloptSubSolver = sub_solver
 
   if penalty == NormL1
     dual_norm = NormLinf(1.0)
@@ -49,7 +51,7 @@ function exact_penalty_solver(
   # initializations
   τ = 10.0  # penalty parameter
   iter = 0
-  max_iter = 20
+  max_iter = 100
   dfeas_tol = 1.0e-6
   subtol = 1.0e-2
   pfeas_measure = penalty(1.0)
@@ -66,6 +68,8 @@ function exact_penalty_solver(
   first_order = false
   tired = iter >= max_iter
   finished = first_order || tired
+  env_iters = zeros(max_iter)
+  nlp_iters = zeros(max_iter)
 
   local stats
   while !finished
@@ -76,7 +80,7 @@ function exact_penalty_solver(
     env_model = EnveloptNLPModel(model, Fmodel, h, x0 = x)
 
     # call solver
-    stats, status, u = envelopt(
+    stats, status, u, nlp_iter = envelopt(
       env_model,
       verbose = sub_verbose,
       subsolver = EnveloptSubSolver(env_model),
@@ -105,6 +109,8 @@ function exact_penalty_solver(
     end
     pfeas = pfeas_next
     iter += 1
+    env_iters[iter] = stats.iter
+    nlp_iters[iter] = nlp_iter
 
     if iter == 1
       dfeas_tol *= (1 + stats.dual_feas)
@@ -119,5 +125,5 @@ function exact_penalty_solver(
     finished = first_order || tired
   end
 
-  return stats, pfeas
+  return stats, pfeas, iter, env_iters[1:iter], nlp_iters[1:iter]
 end
