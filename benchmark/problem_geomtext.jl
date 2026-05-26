@@ -68,9 +68,9 @@ function noisy_CT_image(X, H)
   return y, chi
 end
 
-Random.seed!(123) # For reproducibility
+Random.seed!(123) # seed for reproducibility
 
-sample_name = "glass"
+sample_name = "glass" # "glass", "agaricus"
 println("sample:           $(sample_name)\n")
 Xgroundt, weightTV = load_image(sample_name)
 pipa_H = make_pipa_H() # Radon operator
@@ -208,10 +208,6 @@ model = NLPModel(
   jac_coord = (Ac_i, Ac_j, Ac_vals!),
 )
 
-# for debugging
-#solver = MadNLPSolver(model, hessian_approximation=MadNLP.CompactLBFGS)
-#out = solve!(solver)
-
 # TODO specify constraints are linear
 Fmodel = NLPModel(
   x0,
@@ -224,13 +220,30 @@ Fmodel = NLPModel(
 
 env_model = EnveloptNLPModel(model, Fmodel, h)
 
-# for debugging
-#solver = MadNLPSolver(env_model, hessian_approximation=MadNLP.CompactLBFGS)
-#out = solve!(solver)
-
 # TODO add callback to monitor SNR as in the PIPA paper
 TOL = 1e-3
-runtime = @elapsed stats, status, u =
-  envelopt(env_model, verbose = true, max_outer = 30, dtol_min = TOL, ptol_min = TOL)
+runtime = @elapsed stats, status, u, tot_inner_iter =
+  envelopt(env_model, verbose = true, dtol_min = TOL, ptol_min = TOL)
 display(stats)
 display(runtime)
+display(stats.iter)
+display(tot_inner_iter)
+
+function save_fig_solution(stats)
+  xtxg = stats.solution
+  xt = xtxg[1:N]
+  xt = reshape(xt, nrows, ncols)
+  xg = xtxg[(N + 1):nvar]
+  xg = reshape(xg, nrows, ncols)
+  x = xt + xg
+  xt = max.(0, min.(xt, 1))
+  xg = max.(0, min.(xg, 1))
+  x = max.(0, min.(x, 1))
+
+  save(sample_name * "_ground.pdf", Xgroundt)
+  save(sample_name * "_x.pdf", x)
+  save(sample_name * "_xt.pdf", xt)
+  save(sample_name * "_xg.pdf", xg)
+end
+
+save_fig_solution(stats)
