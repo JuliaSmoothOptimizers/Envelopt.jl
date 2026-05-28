@@ -20,7 +20,7 @@ end
 const ipopt_fixed_options = Dict(
   :sb => "yes",  # options that are always used
   :print_level => 0,
-  :max_iter => 100,
+  :max_iter => 1000,
   :dual_inf_tol => 0.1,  # IPOPT stops when relative AND absolute tolerances are met.
   :constr_viol_tol => 0.1,
   :compl_inf_tol => 0.1,

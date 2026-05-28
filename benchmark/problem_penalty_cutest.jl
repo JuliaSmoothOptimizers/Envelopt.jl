@@ -4,11 +4,14 @@ using Statistics
 
 using Envelopt
 
-print_info(iter, env_iters, nlp_iters) = println(
-  "$(iter) iterations, median $(median(env_iters)) ENV iterations, median $(median(nlp_iters)) NLP iterations",
-)
+function print_info(iter, env_iters, nlp_iters)
+  println("$(iter) penalty iterations")
+  println("  ENV iterations: median $(median(env_iters)), max $(maximum(env_iters))")
+  println("  NLP iterations: median $(median(nlp_iters)), max $(maximum(nlp_iters))")
+end
 
-nlp = hs18()
+nlp = hs118()
+# nlp = zangwil3()
 for pnorm in [NormL1, NormL2, NormLinf]
   println("subsolver MADNLP - penalty $(pnorm) ------------------------------")
   stats, pfeas, iter, env_iters, nlp_iters =

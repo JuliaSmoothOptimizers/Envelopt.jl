@@ -1,10 +1,10 @@
 using ProximalOperators, ADNLPModels
-using Random, LinearAlgebra
+using Random, LinearAlgebra, Statistics
 using NCL, MadNLP, NLPModelsIpopt
 
 using Envelopt
 
-# min (x₁ - 1)² + (x₂ - 1)² + \|x\|_1   s.t. x₁ * x₂ = 0, x₁ ≥ 0, x₂ ≥ 0.
+# min (x₁ - 1)² + (x₂ - 1)² + \|x\|_1   s.t. x₁ * x₂ ≤ 0, x₁ ≥ 0, x₂ ≥ 0.
 
 function which_expected_solution(x, tol = 1e-2)
   x00 = [0, 0]
@@ -42,20 +42,35 @@ end
 
 Random.seed!(123) # seed for reproducibility
 
+TOL = 1e-6
 ntrials = 100
+
 res = (
-  madnlp = zeros(ntrials),
-  ipopt = zeros(ntrials),
-  envelopt = zeros(ntrials),
-  ncl = zeros(ntrials),
-  ncl_envelopt = zeros(ntrials),
-  ind_envelopt = zeros(ntrials),
+  envelopt_madnlp = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_ipopt = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  ncl_envelopt_madnlp = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  ncl_envelopt_ipopt = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  madnlp = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  ipopt = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  alps = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  ncl = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_madnlp_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_ipopt_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
 )
 
 h = NormL1(1.0)
 
+eval_F!(Fx, x) = begin
+  Fx .= 0.0
+  Fx[1:2] .= x[1:2]
+  Fx[3] = x[1] * x[2]
+  Fx
+end
+Fmodel_bnd = ADNLPModel!(x -> 0.0, zeros(2), eval_F!, zeros(3), zeros(3))
+h_bnd = SlicedSeparableSum((h, IndNonpositive()), ((1:2,), (3,)))
+
 for i = 1:ntrials
-  x0 = 10 * randn(2)
+  x0 = 100 * randn(2)
 
   model = ADNLPModel(
     x -> (x[1] - 1)^2 + (x[2] - 1)^2,
@@ -63,9 +78,11 @@ for i = 1:ntrials
     [0.0, 0.0],
     [Inf, Inf],
     x -> [x[1] * x[2]],
-    [0.0],
+    [-Inf],
     [0.0],
   )
+
+  model_bnd = ADNLPModel(x -> (x[1] - 1)^2 + (x[2] - 1)^2, x0, [0.0, 0.0], [Inf, Inf])
 
   fullmodel = ADNLPModel(
     x -> (x[1] - 1)^2 + (x[2] - 1)^2 + x[1] + x[2],
@@ -73,56 +90,98 @@ for i = 1:ntrials
     [0.0, 0.0],
     [Inf, Inf],
     x -> [x[1] * x[2]],
-    [0.0],
+    [-Inf],
     [0.0],
   )
 
   # with MadNLP
-  madnlp_solver = MadNLP.MadNLPSolver(
-    fullmodel,
-    hessian_approximation = MadNLP.CompactLBFGS,
-    print_level = MadNLP.INFO,
-    tol = 1e-6,
-  )
+  madnlp_solver = MadNLP.MadNLPSolver(fullmodel, print_level = MadNLP.INFO, tol = TOL)
   stats = MadNLP.solve!(madnlp_solver)
-  res.madnlp[i] = process_output(stats)
+  res.madnlp.flag[i] = process_output(stats)
+  res.madnlp.iter[i] = stats.iter
 
   # with Ipopt
-  stats = ipopt(fullmodel, warm_start_init_point = "yes")
-  res.ipopt[i] = process_output(stats)
+  stats = ipopt(fullmodel, warm_start_init_point = "yes", tol = TOL)
+  res.ipopt.flag[i] = process_output(stats)
+  res.ipopt.iter[i] = stats.iter
 
-  # with Envelopt
+  # with Envelopt+MadNLP
   env_model = EnveloptNLPModel(model, h)
-  stats, status, u = envelopt(env_model, verbose = true)
-  res.envelopt[i] = process_output(stats)
+  stats, status, u, nlp_iter = envelopt(env_model, ptol_min = TOL, dtol_min = TOL)
+  res.envelopt_madnlp.flag[i] = process_output(stats)
+  res.envelopt_madnlp.iter[i] = nlp_iter
+
+  # with Envelopt+Ipopt
+  env_model = EnveloptNLPModel(model, h)
+  stats, status, u, nlp_iter = envelopt(
+    env_model,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = IPOPTEnveloptSubSolver(env_model),
+  )
+  res.envelopt_ipopt.flag[i] = process_output(stats)
+  res.envelopt_ipopt.iter[i] = nlp_iter
+
+  # TODO add AL from RegularizedOptimization
+  # stats = AL(model, h, atol = TOL, ctol = TOL)
+  # res.alps.flag[i] = process_output(stats)
+  # res.alps.iter[i] = stats.iter
 
   # with NCL
-  stats = NCLSolve(fullmodel)
-  res.ncl[i] = process_output(stats)
+  stats = NCLSolve(fullmodel, opt_tol = TOL, feas_tol = TOL)
+  res.ncl.flag[i] = process_output(stats)
+  res.ncl.iter[i] = stats.iter
 
-  # with NCL+Envelopt
+  # with NCL+Envelopt+MadNLP
   ncl_model = NCLModel(model)
   env_ncl_model = EnveloptNLPModel(ncl_model, h)
-  stats, status, u = envelopt(env_ncl_model, verbose = true)
-  res.ncl_envelopt[i] = process_output(stats)
+  stats, status, u, nlp_iter = envelopt(env_ncl_model, ptol_min = TOL, dtol_min = TOL)
+  res.ncl_envelopt_madnlp.flag[i] = process_output(stats)
+  res.ncl_envelopt_madnlp.iter[i] = nlp_iter
 
-  # with Envelopt on different formulation (to obtain NCL-like regularization)
-  model_ind = ADNLPModel(x -> (x[1] - 1)^2 + (x[2] - 1)^2, x0, [0.0, 0.0], [Inf, Inf])
-  eval_F!(Fx, x) = begin
-    Fx .= 0.0
-    Fx[1:2] .= x[1:2]
-    Fx[3] = x[1] * x[2]
-    Fx
-  end
-  Fmodel_ind = ADNLPModel!(x -> 0.0, zeros(2), eval_F!, zeros(3), zeros(3))
-  h_ind = SlicedSeparableSum((h, IndZero()), ((1:2,), (3,)))
-  env_model_ind = EnveloptNLPModel(model_ind, Fmodel_ind, h_ind)
-  stats, status, u_ind = envelopt(env_model_ind, verbose = true, max_outer = 100)
-  res.ind_envelopt[i] = process_output(stats)
+  # with NCL+Envelopt+Ipopt
+  ncl_model = NCLModel(model)
+  env_ncl_model = EnveloptNLPModel(ncl_model, h)
+  stats, status, u, nlp_iter = envelopt(
+    env_ncl_model,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = IPOPTEnveloptSubSolver(env_ncl_model),
+  )
+  res.ncl_envelopt_ipopt.flag[i] = process_output(stats)
+  res.ncl_envelopt_ipopt.iter[i] = nlp_iter
+
+  #=====================================================#
+  # BND formulation with Envelopt+MadNLP
+  env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
+  stats, status, u, nlp_iter = envelopt(env_model_bnd, ptol_min = TOL, dtol_min = TOL)
+  res.envelopt_madnlp_bnd.flag[i] = process_output(stats)
+  res.envelopt_madnlp_bnd.iter[i] = nlp_iter
+
+  # BND formulation with Envelopt+Ipopt
+  env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_bnd,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = IPOPTEnveloptSubSolver(env_model_bnd),
+  )
+  res.envelopt_ipopt_bnd.flag[i] = process_output(stats)
+  res.envelopt_ipopt_bnd.iter[i] = nlp_iter
 end
 
 for k in keys(res)
+  tmp_flag = res[k].flag
+  tmp_iter = res[k].iter
+  println("$(k)")
   println(
-    "$(k): $(sum(res[k] .> 0)) global sol / $(sum(res[k] .== 0)) local max / $(sum(res[k] .== -1)) unexpected sol/ $(sum(res[k] .== -2)) failed",
+    "   $(sum(tmp_flag .> 0)*100/ntrials) global sol / $(sum(tmp_flag .== 0)*100/ntrials) local max",
   )
+  if sum(tmp_flag .< 0) > 0
+    @warn "unexpected behaviour"
+    println(
+      "   $(sum(tmp_flag .== -1)*100/ntrials) unexpected sol/ $(sum(tmp_flag .== -2)*100/ntrials) failed",
+    )
+  end
+  println("   NLP iterations: median $(median(tmp_iter)), max $(maximum(tmp_iter))")
 end

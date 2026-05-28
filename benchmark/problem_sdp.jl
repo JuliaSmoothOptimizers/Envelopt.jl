@@ -73,8 +73,8 @@ function example_4_Ramana()
   hmat = IndPSD()
   h = VectorizedProximable(hmat, nmat)
   Fmodel = ADNLPModel!(x -> 0.0, zeros(nvar), eval_F!, zeros(nF), zeros(nF))
-  env_model = EnveloptNLPModel(model, Fmodel, h)
-  return env_model
+  emodel = EnveloptNLPModel(model, Fmodel, h)
+  return emodel
 end
 
 function example_4_Ramana_JuMP()
@@ -90,21 +90,21 @@ function example_4_Ramana_JuMP()
   return prob
 end
 
+function process_output(stats, status, inner_iter)
+  if status != "first_order"
+    @warn "failed problem"
+  end
+  display(stats.solution)
+  println("ENV iterations $(stats.iter)")
+  println("NLP iterations $(inner_iter)")
+end
+
 Random.seed!(123) # seed for reproducibility
 
-TOL = 1e-5
+TOL = 1e-6
 
-# solve with Envelopt
-env_model = example_4_Ramana()
-stats, status, u, tot_inner_iter = envelopt(
-  env_model,
-  verbose = true,
-  dtol_min = TOL,
-  ptol_min = TOL,
-  subsolver = IPOPTEnveloptSubSolver(env_model),
-)
-@assert status == "first_order"
-x = stats.solution
+# solve with SCS
+x, fx = solve_conic_problem(problem, tol = TOL, optimizer = SCS.Optimizer)
 display(x)
 
 # solve with Clarabel
@@ -112,6 +112,14 @@ problem = example_4_Ramana_JuMP()
 x, fx = solve_conic_problem(problem, tol = TOL, optimizer = Clarabel.Optimizer)
 display(x)
 
-# solve with SCS
-x, fx = solve_conic_problem(problem, tol = TOL, optimizer = SCS.Optimizer)
-display(x)
+# solve with Envelopt+Ipopt
+emodel = example_4_Ramana()
+stats, status, u, inner_iter =
+  envelopt(emodel, dtol_min = TOL, ptol_min = TOL, subsolver = IPOPTEnveloptSubSolver(emodel))
+process_output(stats, status, inner_iter)
+
+# solve with Envelopt+MadNLP
+emodel = example_4_Ramana()
+stats, status, u, inner_iter =
+  envelopt(emodel, dtol_min = TOL, ptol_min = TOL, subsolver = MadNLPEnveloptSubSolver(emodel))
+process_output(stats, status, inner_iter)

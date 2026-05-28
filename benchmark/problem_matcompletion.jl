@@ -81,6 +81,7 @@ end
 Random.seed!(123) # seed for reproducibility
 
 TOL = 1e-6
+
 N = 10
 dim = 5
 nvar = N * N
@@ -89,16 +90,19 @@ nobs = Int(floor((nvar - nsym) / 3))
 ncon = nobs + nsym
 
 ntrials = 100
+
+subsolvers = [IPOPTEnveloptSubSolver, MadNLPEnveloptSubSolver]
+subsolver_to_key(subsolver) =
+  Symbol(lowercase(replace(string(subsolver), ("EnveloptSubSolver" => ""))))
+
 res = (
-  iter = zeros(ntrials),
-  inner_iter = zeros(ntrials),
-  rank_x = zeros(ntrials),
-  rank_u = zeros(ntrials),
+  madnlp = (iter = zeros(ntrials), inner_iter = zeros(ntrials), rank_u = zeros(ntrials)),
+  ipopt = (iter = zeros(ntrials), inner_iter = zeros(ntrials), rank_u = zeros(ntrials)),
 )
 
 f(x) = 0
-gmat = NuclearNorm(1.0)
-g = VectorizedProximable(gmat, N, N)
+h = VectorizedProximable(NuclearNorm(1.0), N, N)
+Asym = sym_constraints(N)
 
 for i = 1:ntrials
   println("--------------------")
@@ -106,37 +110,39 @@ for i = 1:ntrials
   x0 = randn(nvar)
   iobs, jobs, vobs = sampled_distance_matrix(N, nobs, dim)
   Aobs, bobs = obs_constraints(N, iobs, jobs, vobs)
-  Asym = sym_constraints(N)
   c!(cx, x) = eval_constraints!(cx, x, nobs, nsym, Aobs, bobs, Asym)
   model = ADNLPModel!(f, x0, c!, zeros(ncon), zeros(ncon))
 
-  env_model = EnveloptNLPModel(model, g)
-  stats, status, u, inner_iter = envelopt(env_model, verbose = true, dtol_min = TOL, ptol_min = TOL)
-  x = stats.solution
+  for subsolver in subsolvers
+    key = subsolver_to_key(subsolver)
+    env_model = EnveloptNLPModel(model, h)
+    stats, status, u, inner_iter =
+      envelopt(env_model, dtol_min = TOL, ptol_min = TOL, subsolver = subsolver(env_model))
 
-  res.iter[i] = stats.iter
-  res.inner_iter[i] = inner_iter
-  if status == "first_order"
-    xmat = reshape(x, (N, N))
-    rank_x = rank(xmat)
-    println("Rank of x = $(rank_x)")
-    res.rank_x[i] = rank_x
-    umat = reshape(u, (N, N))
-    rank_u = rank(umat)
-    println("Rank of u = $(rank_u)")
-    res.rank_u[i] = rank_u
-  else
-    @warn "failed problem"
-    res.rank_x[i] = NaN
-    res.rank_u[i] = NaN
+    res[key].iter[i] = stats.iter
+    res[key].inner_iter[i] = inner_iter
+    if status == "first_order"
+      umat = reshape(u, (N, N))
+      rank_u = rank(umat)
+      println("Rank of u = $(rank_u)")
+      res[key].rank_u[i] = rank_u
+    else
+      @warn "failed problem"
+      res[key].rank_u[i] = NaN
+    end
   end
 end
 
-is_problem_solved = .!(isnan.(res.rank_u))
-println("$(ntrials) trials")
-println("- improved rank $(sum((res.rank_u[is_problem_solved] .< N)))")
-println("- failed $(ntrials-sum(is_problem_solved))")
-println("Median iterations: $(median(res.iter[is_problem_solved]))")
-println("Max iterations: $(maximum(res.iter[is_problem_solved]))")
-println("Median inner iterations: $(median(res.inner_iter[is_problem_solved]))")
-println("Max inner iterations: $(maximum(res.inner_iter[is_problem_solved]))")
+for key in keys(res)
+  println("-----  $(key)  -----")
+  is_problem_solved = .!(isnan.(res[key].rank_u))
+  num_problem_solved = sum(is_problem_solved)
+  num_improved_rank = sum((res[key].rank_u[is_problem_solved] .< N))
+  println("$(ntrials) trials")
+  println("        success rate $(num_problem_solved*100/ntrials)")
+  println("  improved rank rate $(num_improved_rank*100/ntrials)")
+  println("ENV iterations (median): $(median(res[key].iter[is_problem_solved]))")
+  println("                 (max)s: $(maximum(res[key].iter[is_problem_solved]))")
+  println("NLP iterations (median): $(median(res[key].inner_iter[is_problem_solved]))")
+  println("                  (max): $(maximum(res[key].inner_iter[is_problem_solved]))")
+end
