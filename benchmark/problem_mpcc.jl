@@ -4,6 +4,8 @@ using NCL, MadNLP, NLPModelsIpopt
 
 using Envelopt
 
+include("normL1nonnegative.jl")
+
 # min (x₁ - 1)² + (x₂ - 1)² + \|x\|_1   s.t. x₁ * x₂ ≤ 0, x₁ ≥ 0, x₂ ≥ 0.
 
 function which_expected_solution(x, tol = 1e-2)
@@ -56,6 +58,8 @@ res = (
   ncl = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_madnlp_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_ipopt_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_madnlp_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_ipopt_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
 )
 
 h = NormL1(1.0)
@@ -68,6 +72,7 @@ eval_F!(Fx, x) = begin
 end
 Fmodel_bnd = ADNLPModel!(x -> 0.0, zeros(2), eval_F!, zeros(3), zeros(3))
 h_bnd = SlicedSeparableSum((h, IndNonpositive()), ((1:2,), (3,)))
+h_unc = SlicedSeparableSum((NormL1Nonnegative(1.0), IndNonpositive()), ((1:2,), (3,)))
 
 for i = 1:ntrials
   x0 = 100 * randn(2)
@@ -83,6 +88,8 @@ for i = 1:ntrials
   )
 
   model_bnd = ADNLPModel(x -> (x[1] - 1)^2 + (x[2] - 1)^2, x0, [0.0, 0.0], [Inf, Inf])
+
+  model_unc = ADNLPModel(x -> (x[1] - 1)^2 + (x[2] - 1)^2, x0)
 
   fullmodel = ADNLPModel(
     x -> (x[1] - 1)^2 + (x[2] - 1)^2 + x[1] + x[2],
@@ -168,6 +175,24 @@ for i = 1:ntrials
   )
   res.envelopt_ipopt_bnd.flag[i] = process_output(stats)
   res.envelopt_ipopt_bnd.iter[i] = nlp_iter
+
+  #=====================================================#
+  # UNC formulation with Envelopt+MadNLP
+  env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
+  stats, status, u, nlp_iter = envelopt(env_model_unc, ptol_min = TOL, dtol_min = TOL)
+  res.envelopt_madnlp_unc.flag[i] = process_output(stats)
+  res.envelopt_madnlp_unc.iter[i] = nlp_iter
+
+  # UNC formulation with Envelopt+Ipopt
+  env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_unc,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = IPOPTEnveloptSubSolver(env_model_unc),
+  )
+  res.envelopt_ipopt_unc.flag[i] = process_output(stats)
+  res.envelopt_ipopt_unc.iter[i] = nlp_iter
 end
 
 for k in keys(res)
