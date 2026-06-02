@@ -27,6 +27,8 @@ end
 function process_output(stats)
   is_solved = if stats.status == :first_order
     true
+  elseif stats.status == "first order"
+    true
   elseif stats.status == MadNLP.Status(1)
     true
   else
@@ -35,6 +37,8 @@ function process_output(stats)
   flag = if is_solved
     which_expected_solution(stats.solution[1:2])
   else
+    display(stats)
+    display(stats.status)
     -2
   end
   display(stats.solution)
@@ -44,7 +48,7 @@ end
 
 Random.seed!(123) # seed for reproducibility
 
-TOL = 1e-6
+TOL = 1e-5
 ntrials = 100
 
 res = (
@@ -58,8 +62,11 @@ res = (
   ncl = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_madnlp_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_ipopt_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_tron_bnd = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_madnlp_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
   envelopt_ipopt_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_tron_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
+  envelopt_trunk_unc = (flag = zeros(ntrials), iter = zeros(ntrials)),
 )
 
 h = NormL1(1.0)
@@ -176,6 +183,17 @@ for i = 1:ntrials
   res.envelopt_ipopt_bnd.flag[i] = process_output(stats)
   res.envelopt_ipopt_bnd.iter[i] = nlp_iter
 
+  # BND formulation with Envelopt+TRON
+  env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_bnd,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = TronEnveloptSubSolver(env_model_bnd),
+  )
+  res.envelopt_tron_bnd.flag[i] = process_output(stats)
+  res.envelopt_tron_bnd.iter[i] = nlp_iter
+
   #=====================================================#
   # UNC formulation with Envelopt+MadNLP
   env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
@@ -193,11 +211,34 @@ for i = 1:ntrials
   )
   res.envelopt_ipopt_unc.flag[i] = process_output(stats)
   res.envelopt_ipopt_unc.iter[i] = nlp_iter
+
+  # UNC formulation with Envelopt+TRON
+  env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_unc,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = TronEnveloptSubSolver(env_model_unc),
+  )
+  res.envelopt_tron_unc.flag[i] = process_output(stats)
+  res.envelopt_tron_unc.iter[i] = nlp_iter
+
+  # UNC formulation with Envelopt+TRUNK
+  env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_unc,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = TrunkEnveloptSubSolver(env_model_unc),
+  )
+  res.envelopt_trunk_unc.flag[i] = process_output(stats)
+  res.envelopt_trunk_unc.iter[i] = nlp_iter
 end
 
 for k in keys(res)
   tmp_flag = res[k].flag
   tmp_iter = res[k].iter
+  is_problem_solved = .!(tmp_flag .== -2)
   println("$(k)")
   println(
     "   $(sum(tmp_flag .> 0)*100/ntrials) global sol / $(sum(tmp_flag .== 0)*100/ntrials) local max",
@@ -208,5 +249,5 @@ for k in keys(res)
       "   $(sum(tmp_flag .== -1)*100/ntrials) unexpected sol/ $(sum(tmp_flag .== -2)*100/ntrials) failed",
     )
   end
-  println("   NLP iterations: median $(median(tmp_iter)), max $(maximum(tmp_iter))")
+  println("   NLP iterations: median $(median(tmp_iter[is_problem_solved])), max $(maximum(tmp_iter[is_problem_solved]))")
 end

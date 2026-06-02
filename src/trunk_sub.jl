@@ -18,7 +18,7 @@ function TrunkEnveloptSubSolver(env_model::EnveloptNLPModel)
   return TrunkEnveloptSubSolver(solver, stats, "Trunk")
 end
 
-const trunk_fixed_options = Dict(:max_iter => 1000)
+const trunk_fixed_options = Dict(:max_iter => 10000)
 
 # ... solve
 function (M::TrunkEnveloptSubSolver)(
