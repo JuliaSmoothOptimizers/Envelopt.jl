@@ -59,7 +59,7 @@ end
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u =
     envelopt(env_model, subsolver = IPOPTEnveloptSubSolver(env_model), verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "simple unconstrained envelopt solve with MadNLP" tags=[:solver, :unconstrained, :madnlp] begin
@@ -68,7 +68,7 @@ end
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u = envelopt(env_model, verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "simple unconstrained envelopt solve with Trunk" tags=[:solver, :unconstrained, :trunk] begin
@@ -78,7 +78,7 @@ end
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u =
     envelopt(env_model; subsolver = TrunkEnveloptSubSolver(env_model), verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "simple unconstrained envelopt solve with Tron" tags=[:solver, :unconstrained, :tron] begin
@@ -88,7 +88,7 @@ end
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u =
     envelopt(env_model; subsolver = TronEnveloptSubSolver(env_model), verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "simple bound-constrained envelopt solve with Tron" tags=[
@@ -102,7 +102,7 @@ end
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u =
     envelopt(env_model; subsolver = TronEnveloptSubSolver(env_model), verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "test constrained problem with MadNLP" tags=[:solvers, :constrained, :madnlp] begin
@@ -111,7 +111,7 @@ end
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u = envelopt(env_model, verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "test constrained problem with IPOPT" tags=[:solvers, :constrained, :ipopt] begin
@@ -121,7 +121,7 @@ end
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
   stats, status, u =
     envelopt(env_model, subsolver = IPOPTEnveloptSubSolver(env_model), verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end
 
 @testitem "test complementarity problem with NCL" tags=[:solvers, :constrained, :mpcc] begin
@@ -140,5 +140,5 @@ end
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(ncl_model, h)  # F(x, r) = x and μ = 1 by default
   stats, status, u = envelopt(env_model, verbose = false)
-  @test status == "first_order"
+  @test status == :first_order
 end

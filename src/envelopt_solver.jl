@@ -170,17 +170,17 @@ function envelopt(
   end
   verbose && @info log_line
 
-  status = "unknown"
+  status = :unknown
   if outer_iter ≥ max_outer
     verbose && @info "$(indent)maximum number of outer iterations reached"
-    status = "max_iter"
+    status = :max_iter
   end
   if subsolver_failed
-    status = "error"
+    status = :error
   end
   if stationary
     verbose && @info "$(indent)found an approximate stationary point"
-    status = "first_order"
+    status = :first_order
   end
 
   copyto!(get_x0(env_model), x0)  # restore env_model.meta.x0
