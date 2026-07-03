@@ -1,27 +1,27 @@
-export R2EnveloptSubSolver
+export NMPGEnveloptSubSolver
 
 using RegularizedProblems, RegularizedOptimization
 
-# R2 subproblem solver
-mutable struct R2EnveloptSubSolver <: AbstractEnveloptSubSolver
-  solver::RegularizedOptimization.R2Solver
+# NMPG subproblem solver
+mutable struct NMPGEnveloptSubSolver <: AbstractEnveloptSubSolver
+  solver::RegularizedOptimization.NMPGSolver
   stats::GenericExecutionStats
   name::String
 end
 
 # ... constructor
-function R2EnveloptSubSolver(env_model::EnveloptNLPModel)
-  @debug "initializing R2 subproblem solver"
+function NMPGEnveloptSubSolver(env_model::EnveloptNLPModel)
+  @debug "initializing NMPG subproblem solver"
   reg_nlp = RegularizedNLPModel(env_model, env_model.g)
-  solver = RegularizedOptimization.R2Solver(reg_nlp)
+  solver = RegularizedOptimization.NMPGSolver(reg_nlp)
   stats = RegularizedExecutionStats(reg_nlp)
-  return R2EnveloptSubSolver(solver, stats, "R2")
+  return NMPGEnveloptSubSolver(solver, stats, "NMPG")
 end
 
 # TODO add fixed options
 
 # ... solve
-function (sub::R2EnveloptSubSolver)(
+function (sub::NMPGEnveloptSubSolver)(
   env_model::EnveloptNLPModel,
   x0::AbstractVector,
   args...;
@@ -36,8 +36,10 @@ function (sub::R2EnveloptSubSolver)(
     x = x0,
     atol = tol,
     rtol = 0.0,
-    max_iter = 10_000_000,
+    max_iter = 1_000_000,
     max_time = 600.0,
+    w_monotone = 0.25,
+    spectral_stepsize = true,
   )
   return sub.stats
 end

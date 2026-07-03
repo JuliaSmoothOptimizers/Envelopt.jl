@@ -142,3 +142,25 @@ end
   stats, status, u = envelopt(env_model, verbose = false)
   @test status == :first_order
 end
+
+@testitem "single subproblem solve with R2" tags=[:solver, :unconstrained, :r2] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  g = NormL0(1.0)
+  env_model = EnveloptNLPModel(model, h, g=g)  # F(x) = x and μ = 1 by default
+  subsolver = R2EnveloptSubSolver(env_model)
+  stats = subsolver(env_model, get_x0(env_model), tol = 1.0e-2)
+  @test Envelopt.first_order(stats)
+end
+
+@testitem "single subproblem solve with NMPG" tags=[:solver, :unconstrained, :nmpg] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  g = NormL0(1.0)
+  env_model = EnveloptNLPModel(model, h, g=g)  # F(x) = x and μ = 1 by default
+  subsolver = NMPGEnveloptSubSolver(env_model)
+  stats = subsolver(env_model, get_x0(env_model), tol = 1.0e-2)
+  @test Envelopt.first_order(stats)
+end

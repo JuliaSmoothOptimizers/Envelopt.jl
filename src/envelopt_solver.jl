@@ -9,6 +9,7 @@ include("ipopt_sub.jl")
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
 include("tron_sub.jl")
+include("nmpg_sub.jl")
 include("r2_sub.jl")
 
 # TODO: preallocate solver object so envelopt can be called in a loop
@@ -46,7 +47,7 @@ function default_subsolver(env_model)
   if env_model.g === ProximalOperators.Zero()
     MadNLPEnveloptSubSolver(env_model)
   else
-    R2EnveloptSubSolver(env_model)
+    NMPGEnveloptSubSolver(env_model)
   end
 end
 
@@ -57,7 +58,7 @@ end
 #     # - TRON if only bounds
 #     # - TRUNK if unconstrained
 #   else
-#     # - R2
+#     # - NMPG, R2
 #   end
 # end
 
