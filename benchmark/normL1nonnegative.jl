@@ -1,7 +1,7 @@
 import ProximalCore: prox, prox!, is_convex
 
 """
-    NormL1Nonnegative(λ=1) 
+    NormL1Nonnegative(λ=1)
     With a nonnegative scalar parameter λ, return the sum of ``L_1`` norm and indicator of the nonnegative orthant
     ```math
     f(x) = λ\\cdot∑_i|x_i| + (x_i >= 0 ? 0 : Inf).
