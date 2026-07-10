@@ -11,6 +11,7 @@ include("trunk_sub.jl")
 include("tron_sub.jl")
 include("nmpg_sub.jl")
 include("r2_sub.jl")
+include("r2dh_sub.jl")
 
 # TODO: preallocate solver object so envelopt can be called in a loop
 """
