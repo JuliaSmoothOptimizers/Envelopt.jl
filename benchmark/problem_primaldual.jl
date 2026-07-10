@@ -3,7 +3,7 @@ using ShiftedProximalOperators
 using RegularizedProblems, RegularizedOptimization
 using ProximalOperators, ProximalAlgorithms
 using Random, LinearAlgebra
-using DataFrames, CSV
+using DataFrames, CSV, Statistics
 using Zygote
 using DifferentiationInterface: AutoZygote
 
@@ -11,34 +11,41 @@ using Envelopt
 
 Random.seed!(123) # seed for reproducibility
 
-# min    1  \|x-xhat\|^2 + g(x) + h(Ax)
+# min    1  \|x-xi\|^2 + g(x) + h(Ax)
 #  x    2 λ
 
 nvar = 10
-na = Int(ceil(0.5*nvar))
-xhat = randn(nvar)
+na = 10
+xi = randn(nvar)
 A = randn(na, nvar)
-h = ProximalOperators.NormL1()
 
 # initial guess
 x0 = randn(nvar)
-y0 = zeros(na)
-
-# anchor point
-xhat = randn(nvar)
 
 # options
 TOL = 1e-5
-MAXITER = 10_000
+MAXITER = 100_000
 
-problem_objective(x, g, lambda) = (norm(x - xhat)^2) / (2*lambda) + g(x) + h(A*x)
+problem_objective(x, g, h, lambda) = (norm(x - xi)^2) / (2*lambda) + g(x) + h(A*x)
 
-function proxcompsum_afba(g, lambda)
-  f = ProximalAlgorithms.AutoDifferentiable(x -> (norm(x - xhat)^2) / (2*lambda), AutoZygote())
+function proxcompsum_afba(g, h, lambda)
+  f = ProximalAlgorithms.AutoDifferentiable(x -> (norm(x - xi)^2) / (2*lambda), AutoZygote())
   beta_f = 1/lambda
-  solver = ProximalAlgorithms.AFBA(tol = TOL, maxit = MAXITER, verbose = true)
+  y0 = zeros(na)
+  solver = ProximalAlgorithms.AFBA(tol = TOL, maxit = MAXITER, verbose = false)
   (x, y), iter = solver(x0 = x0, y0 = y0, f = f, g = g, h = h, L = A, beta_f = beta_f)
-  obj = problem_objective(x, g, lambda)
+  obj = problem_objective(x, g, h, lambda)
+  flag = iter < MAXITER
+  return iter, obj, flag
+end
+
+function proxcompsum_vucondat(g, h, lambda)
+  f = ProximalAlgorithms.AutoDifferentiable(x -> (norm(x - xi)^2) / (2*lambda), AutoZygote())
+  beta_f = 1/lambda
+  y0 = zeros(na)
+  solver = ProximalAlgorithms.VuCondat(tol = TOL, maxit = MAXITER, verbose = false)
+  (x, y), iter = solver(x0 = x0, y0 = y0, f = f, g = g, h = h, L = A, beta_f = beta_f)
+  obj = problem_objective(x, g, h, lambda)
   flag = iter < MAXITER
   return iter, obj, flag
 end
@@ -75,11 +82,11 @@ Fmodel = NLPModel(
   jtprod = jtprod!,
 )
 
-function proxcompsum_envelopt(g, lambda, subsolvermaker)
+function proxcompsum_envelopt(g, h, lambda, subsolvermaker)
   # quadratic objective
-  ls_obj(x) = (norm(x - xhat)^2) / (2*lambda)
+  ls_obj(x) = (norm(x - xi)^2) / (2*lambda)
   ls_grad!(gx, x) = begin
-    gx .= (x - xhat) ./ lambda
+    gx .= (x - xi) ./ lambda
     gx
   end
   # models for Envelopt
@@ -91,62 +98,102 @@ function proxcompsum_envelopt(g, lambda, subsolvermaker)
   stats, status, u, inner_iter =
     envelopt(env_model, ptol_min = TOL, dtol_min = TOL, subsolver = subsolver)
   x = stats.solution
-  obj = problem_objective(x, g, lambda)
+  obj = problem_objective(x, g, h, lambda)
   iter = inner_iter
   flag = stats.status == :first_order
   return iter, obj, flag
 end
 
-# ############################################################
-ntrials = 49
+ntrials = 100
 lambda_vec = 10 .^ range(-3, 3, length = ntrials)
+gmakers = [NormL1, RootNormLhalf, NormL0]
+hmakers = [NormL1, NormL2]
+
 res = (
   envelopt_r2 = (flag = zeros(ntrials), iter = zeros(ntrials), obj = zeros(ntrials)),
+  envelopt_r2dh = (flag = zeros(ntrials), iter = zeros(ntrials), obj = zeros(ntrials)),
   envelopt_nmpg = (flag = zeros(ntrials), iter = zeros(ntrials), obj = zeros(ntrials)),
   afba = (flag = zeros(ntrials), iter = zeros(ntrials), obj = zeros(ntrials)),
+  vucondat = (flag = zeros(ntrials), iter = zeros(ntrials), obj = zeros(ntrials)),
+)
+dfstats = DataFrame(
+  solver = String[],
+  h = String[],
+  g = String[],
+  solved = Int[],
+  itermax = Int[],
+  itermedian = Real[],
 )
 
-gmakers =
-  [ProximalOperators.NormL1, ShiftedProximalOperators.RootNormLhalf, ProximalOperators.NormL0]
+for hmaker in hmakers
+  h = hmaker(1.0)
+  for gmaker in gmakers
+    g = gmaker(1.0)
+    for i = 1:ntrials
+      lambda = lambda_vec[i]
 
-for gmaker in gmakers
-  for i = 1:ntrials
-    lambda = lambda_vec[i]
-    g = gmaker(lambda)
+      # Vu-Condat
+      iter, obj, flag = proxcompsum_vucondat(g, h, lambda)
+      res.vucondat.iter[i] = iter
+      res.vucondat.obj[i] = obj
+      res.vucondat.flag[i] = flag
 
-    # AFBA
-    iter, obj, flag = proxcompsum_afba(g, lambda)
-    res.afba.iter[i] = iter
-    res.afba.obj[i] = obj
-    res.afba.flag[i] = flag
+      # AFBA
+      iter, obj, flag = proxcompsum_afba(g, h, lambda)
+      res.afba.iter[i] = iter
+      res.afba.obj[i] = obj
+      res.afba.flag[i] = flag
 
-    # Envelopt R2
-    subsolvermaker = R2EnveloptSubSolver
-    iter, obj, flag = proxcompsum_envelopt(g, lambda, subsolvermaker)
-    res.envelopt_r2.iter[i] = iter
-    res.envelopt_r2.obj[i] = obj
-    res.envelopt_r2.flag[i] = flag
+      # Envelopt R2
+      subsolvermaker = R2EnveloptSubSolver
+      iter, obj, flag = proxcompsum_envelopt(g, h, lambda, subsolvermaker)
+      res.envelopt_r2.iter[i] = iter
+      res.envelopt_r2.obj[i] = obj
+      res.envelopt_r2.flag[i] = flag
 
-    # Envelopt NMPG
-    subsolvermaker = NMPGEnveloptSubSolver
-    iter, obj, flag = proxcompsum_envelopt(g, lambda, subsolvermaker)
-    res.envelopt_nmpg.iter[i] = iter
-    res.envelopt_nmpg.obj[i] = obj
-    res.envelopt_nmpg.flag[i] = flag
-  end
+      # Envelopt NMPG
+      subsolvermaker = NMPGEnveloptSubSolver
+      iter, obj, flag = proxcompsum_envelopt(g, h, lambda, subsolvermaker)
+      res.envelopt_nmpg.iter[i] = iter
+      res.envelopt_nmpg.obj[i] = obj
+      res.envelopt_nmpg.flag[i] = flag
 
-  # save results
-  println("Problem with g=$(gmaker)")
-  for k in keys(res)
-    filename = "$(gmaker)_$(k).csv"
-    mat = zeros(ntrials, 4)
-    mat[:, 1] .= lambda_vec
-    mat[:, 2] .= res[k].flag
-    mat[:, 3] .= res[k].iter
-    mat[:, 4] .= res[k].obj
-    df = DataFrame(mat, :auto)
-    CSV.write(filename, df, writeheader = false)
+      # Envelopt R2DH
+      subsolvermaker = R2DHEnveloptSubSolver
+      iter, obj, flag = proxcompsum_envelopt(g, h, lambda, subsolvermaker)
+      res.envelopt_r2dh.iter[i] = iter
+      res.envelopt_r2dh.obj[i] = obj
+      res.envelopt_r2dh.flag[i] = flag
+    end
 
-    println("$(k) solved $(Int(sum(res[k].flag))) out of $(ntrials)")
+    # save results
+    println("Problem with h=$(hmaker) and g=$(gmaker)")
+    for k in keys(res)
+      filename = "$(hmaker)_$(gmaker)_$(k).csv"
+      mat = zeros(ntrials, 4)
+      mat[:, 1] .= lambda_vec
+      mat[:, 2] .= res[k].flag
+      mat[:, 3] .= res[k].iter
+      mat[:, 4] .= res[k].obj
+      df = DataFrame(mat, :auto)
+      CSV.write(filename, df, writeheader = false)
+
+      # statistics (only solved)
+      idx = BitArray(undef, ntrials)
+      for i = 1:ntrials
+        idx[i] = res[k].flag[i] == 0.0 ? false : true
+      end
+      tmp = res[k].iter[idx]
+      itermedian = median(tmp)
+      itermax = maximum(tmp)
+      solved = Int(sum(res[k].flag))
+
+      println("$(k) solved $(solved) out of $(ntrials): iter max $(itermax), median $(itermedian)")
+
+      push!(dfstats, ("$(k)", "$(hmaker)", "$(gmaker)", solved, itermax, itermedian))
+    end
   end
 end
+
+filenamestats = "primaldual_stats$(ntrials).csv"
+CSV.write(filenamestats, dfstats, writeheader = false)
