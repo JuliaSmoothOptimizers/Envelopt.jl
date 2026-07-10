@@ -163,9 +163,8 @@ for i = 1:ntrials
     subsolver = IPOPTEnveloptSubSolver(env_ncl_model),
   )
   res.ncl_envelopt_ipopt.flag[i] = process_output(stats)
-  res.ncl_envelopt_ipopt.iter[i] = nlp_iter
+  res.ncl_envelopt_ipopt.iter[i] = nlp_iter#=====================================================#
 
-  #=====================================================#
   # BND formulation with Envelopt+MadNLP
   env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
   stats, status, u, nlp_iter = envelopt(env_model_bnd, ptol_min = TOL, dtol_min = TOL)
@@ -192,9 +191,8 @@ for i = 1:ntrials
     subsolver = TronEnveloptSubSolver(env_model_bnd),
   )
   res.envelopt_tron_bnd.flag[i] = process_output(stats)
-  res.envelopt_tron_bnd.iter[i] = nlp_iter
+  res.envelopt_tron_bnd.iter[i] = nlp_iter#=====================================================#
 
-  #=====================================================#
   # UNC formulation with Envelopt+MadNLP
   env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
   stats, status, u, nlp_iter = envelopt(env_model_unc, ptol_min = TOL, dtol_min = TOL)
@@ -249,5 +247,7 @@ for k in keys(res)
       "   $(sum(tmp_flag .== -1)*100/ntrials) unexpected sol/ $(sum(tmp_flag .== -2)*100/ntrials) failed",
     )
   end
-  println("   NLP iterations: median $(median(tmp_iter[is_problem_solved])), max $(maximum(tmp_iter[is_problem_solved]))")
+  println(
+    "   NLP iterations: median $(median(tmp_iter[is_problem_solved])), max $(maximum(tmp_iter[is_problem_solved]))",
+  )
 end
