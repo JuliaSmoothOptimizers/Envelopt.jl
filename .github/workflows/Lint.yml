@@ -46,7 +46,7 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
       - name: Run pre-commit
-        run: SKIP=no-commit-to-branch pre-commit run -a
+        run: SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
   link-checker:
     name: Link checker
     runs-on: ubuntu-latest
