@@ -163,7 +163,7 @@ for i = 1:ntrials
     subsolver = IPOPTEnveloptSubSolver(env_ncl_model),
   )
   res.ncl_envelopt_ipopt.flag[i] = process_output(stats)
-  res.ncl_envelopt_ipopt.iter[i] = nlp_iter#=====================================================#
+  res.ncl_envelopt_ipopt.iter[i] = nlp_iter
 
   # BND formulation with Envelopt+MadNLP
   env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
@@ -191,7 +191,7 @@ for i = 1:ntrials
     subsolver = TronEnveloptSubSolver(env_model_bnd),
   )
   res.envelopt_tron_bnd.flag[i] = process_output(stats)
-  res.envelopt_tron_bnd.iter[i] = nlp_iter#=====================================================#
+  res.envelopt_tron_bnd.iter[i] = nlp_iter
 
   # UNC formulation with Envelopt+MadNLP
   env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
