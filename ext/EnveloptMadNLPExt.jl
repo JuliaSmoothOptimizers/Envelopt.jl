@@ -75,6 +75,20 @@ function (M::MadNLPEnveloptSubSolver)(
   return M.stats
 end
 
+status_map = Dict(
+  MadNLP.SOLVE_SUCCEEDED => :first_order,
+  MadNLP.SOLVED_TO_ACCEPTABLE_LEVEL => :acceptable,
+  MadNLP.INFEASIBLE_PROBLEM_DETECTED => :infeasible,
+  MadNLP.MAXIMUM_ITERATIONS_EXCEEDED => :max_iter,
+  MadNLP.MAXIMUM_WALLTIME_EXCEEDED => :max_time,
+  MadNLP.DIVERGING_ITERATES => :unbounded,
+  MadNLP.INVALID_NUMBER_DETECTED => :invalid_number,
+  MadNLP.ERROR_IN_STEP_COMPUTATION => :step_error,
+  MadNLP.INTERNAL_ERROR => :internal_error,
+  MadNLP.USER_REQUESTED_STOP => :user_stop,
+)
+
+Envelopt.get_substat(stats::MadNLP.MadNLPExecutionStats) = get(status_map, stats, :unknown)
 Envelopt.failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED
 Envelopt.first_order(stats::MadNLP.MadNLPExecutionStats) = stats.status == MadNLP.SOLVE_SUCCEEDED
 
