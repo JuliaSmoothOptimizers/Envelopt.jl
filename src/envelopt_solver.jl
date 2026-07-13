@@ -5,6 +5,7 @@ abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
 first_order(stats::GenericExecutionStats) = stats.status == :first_order
+get_substat(stats::GenericExecutionStats) = stats.status
 
 # TODO: preallocate solver object so envelopt can be called in a loop
 """
@@ -189,7 +190,7 @@ function envelopt(
     status = :max_iter
   end
   if subsolver_failed
-    status = :error
+    status = get_substat(subsolver.stats)
   end
   if stationary
     verbose && @info "$(indent)found an approximate stationary point"
