@@ -28,6 +28,7 @@ NLPModelsModifiers = "0.8"
 NLPModelsTest = "0.10"
 OptimizationProblems = "0.9"
 ProximalOperators = "0.16"
+TestItems = "1.0.0"
 
 [sources]
 Envelopt = { path = ".." }
