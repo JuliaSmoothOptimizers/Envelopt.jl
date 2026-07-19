@@ -5,6 +5,7 @@ Envelopt = "417aea36-706c-5cbc-964a-c036b78ce24c"
 
 [compat]
 Documenter = "1"
+LiveServer = "1.5.0"
 
 [sources]
 Envelopt = {path = ".."}
