@@ -58,6 +58,7 @@ function envelopt(
   NLPModels.reset!(env_model.F)
 
   stats = EnveloptExecutionStats(GenericExecutionStats(env_model), env_model)
+  start_time = time()
 
   x = get_x0(env_model)
   x0 = copy(x)  # to restore env_model.meta.x0 at the end
@@ -177,6 +178,7 @@ function envelopt(
 
     set_objective!(stats, fval + hval)
     set_iter!(stats, stats.iter + 1)
+    set_time!(stats, time() - start_time)
     set_solution!(stats, substats.solution)
     set_dual_residual!(stats, substats.dual_feas)
     set_primal_residual!(stats, substats.primal_feas)
