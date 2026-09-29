@@ -79,9 +79,9 @@ const status_map = Dict(
   MadNLP.INFEASIBLE_PROBLEM_DETECTED => :infeasible,
   MadNLP.MAXIMUM_ITERATIONS_EXCEEDED => :max_iter,
   MadNLP.MAXIMUM_WALLTIME_EXCEEDED => :max_time,
-  MadNLP.DIVERGING_ITERATES => :unbounded,
+  MadNLP.DIVERGING_ITERATES => :exception,
   MadNLP.INVALID_NUMBER_DETECTED => :exception,
-  MadNLP.ERROR_IN_STEP_COMPUTATION => :small_step,
+  MadNLP.ERROR_IN_STEP_COMPUTATION => :exception,
   MadNLP.INTERNAL_ERROR => :exception,
   MadNLP.USER_REQUESTED_STOP => :user,
 )
