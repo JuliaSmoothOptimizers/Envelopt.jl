@@ -1,7 +1,7 @@
 import NLPModels
 
 export EnveloptNLPModel, EnveloptLBFGSModel, EnveloptLSR1Model
-export set_penalty!, set_multiplier!
+export set_penalty!, set_multiplier!, set_status!
 
 """
 A structure to represent the problem
@@ -62,6 +62,7 @@ mutable struct EnveloptNLPModel{
   envelope::MoreauEnvelope{T, H}  # FIXME: allocates; implement our own?
   μ::T
   y::S
+  u::S
   Fμy::S   # temporary storage
   ph::S    # temporary storage
   jtFv::S  # temporary storage for the gradient of the Moreau envelope term, i.e., ∇F(x)' * Fμy
@@ -80,6 +81,7 @@ function EnveloptNLPModel(
   envelope = MoreauEnvelope(h, μ)
   y = fill!(similar(model.meta.x0, get_ncon(F)), zero(T))
   Fμy = similar(y)
+  u = similar(y)
   ph = similar(y)
   jtFv = similar(y, get_nvar(model))
 
@@ -119,6 +121,7 @@ function EnveloptNLPModel(
     envelope,
     μ,
     y,
+    u,
     Fμy,
     ph,
     jtFv,
@@ -195,6 +198,14 @@ function set_multiplier!(
   y::T,
 ) where {T, S, META, NLP, FMODEL, H}
   model.y .= y
+  return model
+end
+
+function set_slack_variable!(
+  model::EnveloptNLPModel{T, S, META, NLP, FMODEL, H},
+  u::S,
+) where {T, S, META, NLP, FMODEL, H}
+  model.u = u
   return model
 end
 
@@ -471,3 +482,12 @@ NLPModels.jtprod_nln!(
   v::AbstractVector,
   jtv::AbstractVector,
 ) = jtprod_nln!(model.model, x, v, jtv)
+
+function EnveloptExecutionStats(
+  stats::GenericExecutionStats,
+  envelopt_model::EnveloptNLPModel,
+) where {T, V}
+  set_solver_specific!(stats, :subiter, 0)
+
+  return stats
+end

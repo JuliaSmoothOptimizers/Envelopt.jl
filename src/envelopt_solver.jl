@@ -5,6 +5,7 @@ abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
 first_order(stats::GenericExecutionStats) = stats.status == :first_order
+get_substat(stats::GenericExecutionStats) = stats.status
 include("ipopt_sub.jl")
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
@@ -48,12 +49,16 @@ function envelopt(
   max_outer::Int = 20,
   dtol_min::Float64 = 1.0e-6,
   ptol_min::Float64 = 1.0e-6,
-  callback = env_model -> false,  # use to update the model, e.g., if it is an NCLModel
+  # callback = env_model -> false,  # use to update the model, e.g., if it is an NCLModel
+  callback = (args...) -> nothing,
   indent::String = "",
 )
   NLPModels.reset!(env_model)
   NLPModels.reset!(env_model.model)
   NLPModels.reset!(env_model.F)
+
+  stats = EnveloptExecutionStats(GenericExecutionStats(env_model), env_model)
+  start_time = time()
 
   x = get_x0(env_model)
   x0 = copy(x)  # to restore env_model.meta.x0 at the end
@@ -94,30 +99,42 @@ function envelopt(
       @sprintf "%s%4d  %8.1e  %8.1e  %8.1e  %7.1e  %7.1e  %7.1e  %7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
   end
 
-  stats = subsolver.stats
+  substats = subsolver.stats
   tot_inner_iter = 0
   tot_iter = 0
 
+  set_status!(
+    stats,
+    get_status(max_outer, outer_iter, stationary, subsolver_failed, get_substat(substats)),
+  )
+
+  callback(env_model, subsolver, stats)
+  done = stats.status != :unknown
+
   # FIXME: smarter stopping condition
-  while !(stationary || subsolver_failed || outer_iter ≥ max_outer)
+  # while !(stationary || subsolver_failed || outer_iter ≥ max_outer)
+  while !done
     # solve subproblem with x as initial guess
     subsolver(env_model, x, outer_iter; tol = dtol)
-    subsolver_failed = failed(stats)
-    tot_inner_iter += stats.iter
+    subsolver_failed = failed(substats)
+    tot_inner_iter += substats.iter
+    set_solver_specific!(stats, :subiter, tot_inner_iter)
     tot_iter += 1
 
     if subsolver_failed
-      verbose && @error "subproblem solver fails with" stats.status
+      verbose && @error "subproblem solver fails with" substats.status
       # FIXME: try to recover
+      done = true
       continue
     end
 
-    x .= stats.solution
+    x .= substats.solution
     eval_F!(env_model, x, F_val)
     @. Fμy = F_val + env_model.μ * env_model.y
     prox!(u, env_model.h, Fμy, env_model.μ)
+    set_slack_variable!(env_model, u)
     lift_feasibility = norm(F_val - u)
-    kkt = max(stats.dual_feas, stats.primal_feas)
+    kkt = max(substats.dual_feas, substats.primal_feas)
 
     feasibility = lift_feasibility
     if isa(inner_model, NCLModel)
@@ -129,7 +146,7 @@ function envelopt(
 
     if verbose
       log_line *=
-        @sprintf "%7.1e  %7.1e  %7.1e  %5d  " stats.dual_feas stats.primal_feas feasibility stats.iter
+        @sprintf "%7.1e  %7.1e  %7.1e  %5d  " substats.dual_feas substats.primal_feas feasibility substats.iter
     end
 
     if feasibility ≤ ptol
@@ -159,6 +176,13 @@ function envelopt(
     env_val = obj(env_model, fval, Fμy)
     outer_iter += 1
 
+    set_objective!(stats, fval + hval)
+    set_iter!(stats, stats.iter + 1)
+    set_time!(stats, time() - start_time)
+    set_solution!(stats, substats.solution)
+    set_dual_residual!(stats, substats.dual_feas)
+    set_primal_residual!(stats, substats.primal_feas)
+
     if verbose
       log_line =
         @sprintf "%s%4d  %8.1e  %8.1e  %8.1e  %7.1e  %7.1e  %7.1e  %7.1e  " indent outer_iter fval hval env_val yNorm env_model.μ dtol ptol
@@ -167,20 +191,23 @@ function envelopt(
     dual_feasible = kkt ≤ dtol_min
     primal_feasible = feasibility ≤ ptol_min
     stationary = dual_feasible && primal_feasible
+    set_status!(
+      stats,
+      get_status(max_outer, outer_iter, stationary, subsolver_failed, get_substat(substats)),
+    )
+    callback(env_model, subsolver, stats)
+    done = stats.status != :unknown
   end
   verbose && @info log_line
 
-  status = :unknown
-  if outer_iter ≥ max_outer
-    verbose && @info "$(indent)maximum number of outer iterations reached"
-    status = :max_iter
-  end
   if subsolver_failed
-    status = :error
+    verbose && @info "$(indent)subsolver failed"
   end
-  if stationary
+  if stats.status == :max_iter
+    verbose && @info "$(indent)maximum number of outer iterations reached"
+  end
+  if stats.status == :first_order
     verbose && @info "$(indent)found an approximate stationary point"
-    status = :first_order
   end
 
   copyto!(get_x0(env_model), x0)  # restore env_model.meta.x0
@@ -192,5 +219,24 @@ function envelopt(
   stats.iter = tot_iter
 
   # TODO: return u in stats?
-  return stats, status, u, tot_inner_iter
+  # return substats, stats.status, u, tot_inner_iter
+  return stats, stats.status, u, tot_inner_iter
+end
+
+function get_status(
+  max_iter = Inf,
+  outer_iter = 0,
+  stationary = false,
+  subsolver_failed = false,
+  substatus = :unknown,
+)
+  if outer_iter ≥ max_iter
+    :max_iter
+  elseif stationary
+    :first_order
+  elseif subsolver_failed
+    substatus
+  else
+    :unknown
+  end
 end

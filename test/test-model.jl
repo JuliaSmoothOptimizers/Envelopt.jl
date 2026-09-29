@@ -81,3 +81,29 @@ end
   g_errs = gradient_check(env_model)
   @test length(g_errs) == 0
 end
+
+@testitem "set_slack_variable! updates u in env_model" tags=[:model] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+
+  u_new = fill!(similar(env_model.u), 1.0)
+  result = Envelopt.set_slack_variable!(env_model, u_new)
+
+  @test result === env_model
+  @test all(env_model.u .== 1.0)
+end
+
+@testitem "set_slack_variable! is called during envelopt and env_model.u is updated" tags=[
+  :model,
+  :madnlp,
+] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+
+  stats, status, u, tot_inner = envelopt(env_model; verbose = false)
+  @test env_model.u ≈ u
+end
