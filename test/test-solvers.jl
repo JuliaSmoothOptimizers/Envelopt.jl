@@ -142,3 +142,61 @@ end
   stats, status, u = envelopt(env_model, verbose = false)
   @test status == :first_order
 end
+
+@testitem "get_status returns :unknown by default" tags=[:stats] begin
+  @test Envelopt.get_status() == :unknown
+end
+
+@testitem "get_status returns :max_iter when outer_iter ≥ max_iter" tags=[:stats] begin
+  @test Envelopt.get_status(5, 5, false, false, :unknown) == :max_iter
+end
+
+@testitem "get_status returns :first_order when stationary" tags=[:stats] begin
+  @test Envelopt.get_status(20, 3, true, false, :unknown) == :first_order
+end
+
+@testitem "get_status returns substatus when subsolver failed" tags=[:stats] begin
+  @test Envelopt.get_status(20, 3, false, true, :stalled) == :stalled
+  @test Envelopt.get_status(20, 3, false, true, :max_iter) == :max_iter
+end
+
+@testitem "stats.iter counts outer iterations" tags=[:stats, :madnlp] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+  max_outer = 3
+  stats, status, u, tot_inner = envelopt(env_model; max_outer = max_outer, verbose = false)
+  @test stats.iter ≤ max_outer
+end
+
+@testitem "stats.objective is finite after solve" tags=[:stats, :madnlp] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+  stats, status, u, tot_inner = envelopt(env_model; verbose = false)
+  @test isfinite(stats.objective)
+end
+
+@testitem "stats.solver_specific[:subiter] tracks total inner iterations" tags=[:stats, :madnlp] begin
+  using ADNLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+  stats, status, u, tot_inner = envelopt(env_model; verbose = false)
+  @test haskey(stats.solver_specific, :subiter)
+  @test stats.solver_specific[:subiter] == tot_inner
+  @test stats.solver_specific[:subiter] ≥ stats.iter
+end
+
+@testitem "stats.solution matches returned u prox" tags=[:stats, :madnlp] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  h = NormL1(1.0)
+  env_model = EnveloptNLPModel(model, h)
+  stats, status, u, tot_inner = envelopt(env_model; verbose = false)
+  fx = obj(model, stats.solution)
+  hu = h(u)
+  @test stats.objective ≈ fx + hu
+end
