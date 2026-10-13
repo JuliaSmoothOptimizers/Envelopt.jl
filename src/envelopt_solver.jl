@@ -9,6 +9,9 @@ include("ipopt_sub.jl")
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
 include("tron_sub.jl")
+include("nmpg_sub.jl")
+include("r2_sub.jl")
+include("r2dh_sub.jl")
 
 # TODO: preallocate solver object so envelopt can be called in a loop
 """
@@ -17,23 +20,23 @@ include("tron_sub.jl")
 
 A solver for the nonsmooth regularized problem
 
-    minimize f(x) + h(F(x))  subject to  c(x) ∈ C,
+    minimize f(x) + h(F(x)) + g(x)  subject to  c(x) ∈ C,
 
-where h is a proper, closed, convex function, and f, F and c are smooth.
+where h is a proper, closed, convex function, g is prox-friendly, and f, F and c are smooth.
 In the first calling form, the `AbstractNLPModel` represents the problem
 
     minimize f(x) subject to  c(x) ∈ C,
 
-h should be part of `args...`, and F is implicity set to the identity mapping (F(x) = x).
+h should be part of `args...`, g is implicitly set to the zero function (g(x)=0), and F to the identity mapping (F(x) = x).
 
 In the second calling form, the `EnveloptNLPModel` will have been constructed from a user-defined F.
 
 The Envelopt solver solves a sequence of Moreau envelope approximations of the problem via an augmented Lagrangian method.
 Each subproblem has the form
 
-    minimize f(x) + h_μ (F(x) + μ y)  subject to  c(x) ∈ C,
+    minimize f(x) + h_μ (F(x) + μ y) + g(x)  subject to  c(x) ∈ C,
 
-where h_μ is the Moreau envelope of g with parameter μ > 0, and y is a dual variable estimate.
+where h_μ is the Moreau envelope of h with parameter μ > 0, and y is a dual variable estimate.
 The subproblems are solved with a solver chosen by the user using a quasi-Newton approximation of the Hessian.
 """
 function envelopt(model::AbstractNLPModel, args...; kwargs...)
@@ -41,9 +44,28 @@ function envelopt(model::AbstractNLPModel, args...; kwargs...)
   envelopt(env_model; kwargs...)
 end
 
+function default_subsolver(env_model)
+  if env_model.g === ProximalOperators.Zero()
+    MadNLPEnveloptSubSolver(env_model)
+  else
+    NMPGEnveloptSubSolver(env_model)
+  end
+end
+
+# TODO check subsolver depending on problem structure? or leave it to the subsolver?
+# function check_subsolver(env_model, subsolver)
+#   if env_model.g === ProximalOperators.Zero()
+#     # - MadNLP, Ipopt, KNITRO
+#     # - TRON if only bounds
+#     # - TRUNK if unconstrained
+#   else
+#     # - NMPG, R2
+#   end
+# end
+
 function envelopt(
   env_model::EnveloptNLPModel;
-  subsolver::AbstractEnveloptSubSolver = MadNLPEnveloptSubSolver(env_model),
+  subsolver::AbstractEnveloptSubSolver = default_subsolver(env_model),
   verbose::Bool = true,
   max_outer::Int = 20,
   dtol_min::Float64 = 1.0e-6,

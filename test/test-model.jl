@@ -81,3 +81,24 @@ end
   g_errs = gradient_check(env_model)
   @test length(g_errs) == 0
 end
+
+@testitem "simple model with g" tags=[:model] begin
+  using NLPModels,
+    NLPModelsTest, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  model = hs13()
+  h = NormL1(1.0)
+  g = NormL0(1.0)
+  env_model = EnveloptNLPModel(model, h, g = g)
+  nx = get_nvar(env_model)
+  x0 = randn(nx)
+  z, gz = prox(env_model.g, x0)
+  @test length(z) == nx
+  @test length(gz) == 1
+  z, gz = prox(env_model.g, x0, 0.1)
+  @test length(z) == nx
+  @test length(gz) == 1
+  efz = obj(env_model, z)
+  @test length(efz) == 1
+  g_errs = gradient_check(env_model)
+  @test length(g_errs) == 0
+end

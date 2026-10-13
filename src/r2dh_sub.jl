@@ -1,0 +1,43 @@
+export R2DHEnveloptSubSolver
+
+using RegularizedProblems, RegularizedOptimization
+
+# R2DH subproblem solver
+mutable struct R2DHEnveloptSubSolver <: AbstractEnveloptSubSolver
+  solver::RegularizedOptimization.R2DHSolver
+  stats::GenericExecutionStats
+  name::String
+end
+
+# ... constructor
+function R2DHEnveloptSubSolver(env_model::EnveloptNLPModel)
+  @debug "initializing R2DH subproblem solver"
+  reg_nlp = RegularizedNLPModel(env_model, env_model.g)
+  solver = RegularizedOptimization.R2DHSolver(reg_nlp)
+  stats = RegularizedExecutionStats(reg_nlp)
+  return R2DHEnveloptSubSolver(solver, stats, "R2DH")
+end
+
+# TODO add fixed options
+
+# ... solve
+function (sub::R2DHEnveloptSubSolver)(
+  env_model::EnveloptNLPModel,
+  x0::AbstractVector,
+  args...;
+  tol::Float64 = 1.0e-6,
+  kwargs...,
+)
+  reg_nlp = RegularizedNLPModel(env_model, env_model.g)
+  RegularizedOptimization.solve!(
+    sub.solver,
+    reg_nlp,
+    sub.stats,
+    x = x0,
+    atol = tol,
+    rtol = 0.0,
+    max_iter = 10_000_000,
+    max_time = 600.0,
+  )
+  return sub.stats
+end

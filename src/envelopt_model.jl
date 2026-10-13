@@ -6,7 +6,7 @@ export set_penalty!, set_multiplier!
 """
 A structure to represent the problem
 
-    minimize f(x) + h_μ (F(x) + μ y)  subject to  c(x) ∈ C,
+    minimize f(x) + h_μ (F(x) + μ y) + g(x) subject to  c(x) ∈ C,
 
 where h_μ is the Moreau envelope of h with parameter μ > 0.
 
@@ -14,6 +14,7 @@ where h_μ is the Moreau envelope of h with parameter μ > 0.
       model::AbstractNLPModel{T, S},
       F::AbstractNLPModel{T, S},
       h,
+      g = Zero(),
       μ::T = 1.0,
     ) where {T, S}
 
@@ -45,6 +46,8 @@ where h_μ is the Moreau envelope of h with parameter μ > 0.
 
 ## Optional arguments
 
+* `g`: a proper, closed function from ProximalOperators.jl (default: Zero()).
+
 * `μ::T`: the initial penalty parameter (default: 1.0).
 """
 mutable struct EnveloptNLPModel{
@@ -54,11 +57,13 @@ mutable struct EnveloptNLPModel{
   NLP <: AbstractNLPModel{T, S},
   FMODEL <: AbstractNLPModel{T, S},
   H,
+  G,
 } <: AbstractNLPModel{T, S}
   meta::META
   model::NLP  # min f(x)  s.t. c(x) ∈ C
   F::FMODEL   # should be given as  min 0  s.t. F(x) = 0 because we need the Jacobian of F
   h::H        # an operator from ProximalOperators.jl
+  g::G        # an operator from ProximalOperators.jl
   envelope::MoreauEnvelope{T, H}  # FIXME: allocates; implement our own?
   μ::T
   y::S
@@ -71,12 +76,14 @@ function EnveloptNLPModel(
   model::M,
   F::FMODEL,
   h::H;
+  g::G = ProximalOperators.Zero(),
   μ::T = one(T),
   x0::S = get_x0(model),
-) where {T, S, M <: AbstractNLPModel{T, S}, FMODEL <: AbstractNLPModel{T, S}, H}
+) where {T, S, M <: AbstractNLPModel{T, S}, FMODEL <: AbstractNLPModel{T, S}, H, G}
   get_nvar(model) == get_nvar(F) || error("number of variables in model and F must match")
   μ > 0 || error("penalty parameter must be > 0")
   get_ncon(F) > 0 || error("F model must have constraints")
+  # TODO warn if g is not Zero and constraints/bounds are present?
   envelope = MoreauEnvelope(h, μ)
   y = fill!(similar(model.meta.x0, get_ncon(F)), zero(T))
   Fμy = similar(y)
@@ -111,11 +118,12 @@ function EnveloptNLPModel(
     hprod_available = model.meta.hprod_available,
   )
 
-  return EnveloptNLPModel{T, S, typeof(model.meta), M, FMODEL, H}(
+  return EnveloptNLPModel{T, S, typeof(model.meta), M, FMODEL, H, G}(
     meta,
     model,
     F,
     h,
+    g,
     envelope,
     μ,
     y,
