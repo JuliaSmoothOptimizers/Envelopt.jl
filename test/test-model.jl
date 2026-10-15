@@ -81,3 +81,59 @@ end
   g_errs = gradient_check(env_model)
   @test length(g_errs) == 0
 end
+
+@testitem "Hessian of EnveloptNLPModel is ∇²f + 0" tags=[:model, :hessian] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
+  env_model = EnveloptNLPModel(model, NormL1(1.0))
+  x = [0.3, -0.7]
+  v = [1.0, 2.0]
+  Hv = hprod(model, x, v)
+
+  @test hprod(env_model, x, v) == Hv
+  @test hprod(env_model, x, v; obj_weight = 2.0) == 2 * Hv
+  @test hess_op(env_model, x) * v == Hv
+
+  # the operator follows in-place updates of x, as solvers do with their iterate
+  xop = copy(x)
+  H = hess_op(env_model, xop)
+  xop .= [1.1, 0.4]
+  @test H * v == hprod(model, xop, v)
+
+  # second derivatives are counted on the inner model
+  reset!(env_model)
+  hprod(env_model, x, v)
+  @test neval_hprod(env_model) == 1
+
+  # quasi-Newton subsolvers rely on these
+  @test !env_model.meta.hess_available
+  @test env_model.meta.nnzh == 0
+end
+
+@testitem "Hessian of the Lagrangian of EnveloptNLPModel" tags=[:model, :hessian] begin
+  using ADNLPModels, NLPModels, ProximalOperators
+  model = ADNLPModel(
+    x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2,
+    [-1.2; 1.0],
+    x -> [x[1]^2 + x[2]^2],
+    [-Inf],
+    [1.0],
+  )
+  env_model = EnveloptNLPModel(model, NormL1(1.0))
+  x = [0.3, -0.7]
+  y = [2.0]
+  v = [1.0, 2.0]
+  @test hprod(env_model, x, y, v) == hprod(model, x, y, v)
+  @test hess_op(env_model, x, y) * v == hprod(model, x, y, v)
+end
+
+@testitem "Hessian of EnveloptNLPModel with NCL" tags=[:model, :hessian, :ncl] begin
+  using NCL, NLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  ncl_model = NCLModel(hs13())
+  env_model = EnveloptNLPModel(ncl_model, NormL1(1.0))
+  nvar = get_nvar(env_model)
+  x = collect(range(0.1, 0.9, length = nvar))
+  v = collect(range(1.0, 2.0, length = nvar))
+  @test hprod(env_model, x, v) == hprod(ncl_model, x, v)
+  @test hess_op(env_model, x) * v == hprod(ncl_model, x, v)
+end

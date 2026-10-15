@@ -5,6 +5,11 @@ abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
 first_order(stats::GenericExecutionStats) = stats.status == :first_order
+
+# Value of the nonsmooth regularizer handled by the subproblem solver, if any.
+# Subproblem solvers for smooth subproblems have none.
+regularizer_value(sub::AbstractEnveloptSubSolver, x::AbstractVector) = zero(eltype(x))
+
 include("ipopt_sub.jl")
 include("madnlp_sub.jl")
 include("trunk_sub.jl")
@@ -35,6 +40,17 @@ Each subproblem has the form
 
 where h_μ is the Moreau envelope of g with parameter μ > 0, and y is a dual variable estimate.
 The subproblems are solved with a solver chosen by the user using a quasi-Newton approximation of the Hessian.
+
+## Warm start
+
+The initial guess is `get_x0(env_model)`. The keyword arguments
+
+* `init_penalty::Real = 1.0`: the initial value of μ;
+* `init_multiplier = 0.0`: the initial estimate of y (a scalar or a vector of length `get_ncon(env_model.F)`)
+
+allow warm-starting the augmented Lagrangian loop, e.g., with `env_model.μ` and `env_model.y`
+from a previous call on a related problem. Starting a warm x with the cold values μ = 1 and y = 0
+can move x far away in the first subproblem and defeat the warm start.
 """
 function envelopt(model::AbstractNLPModel, args...; kwargs...)
   env_model = EnveloptNLPModel(model, args...)
@@ -50,6 +66,8 @@ function envelopt(
   ptol_min::Float64 = 1.0e-6,
   callback = env_model -> false,  # use to update the model, e.g., if it is an NCLModel
   indent::String = "",
+  init_penalty::Real = 1.0,
+  init_multiplier = 0.0,
 )
   NLPModels.reset!(env_model)
   NLPModels.reset!(env_model.model)
@@ -64,8 +82,13 @@ function envelopt(
   subsolver.stats.multipliers_U .= 0
 
   T = eltype(x)
-  set_multiplier!(env_model, zero(T))  # FIXME: smarter initialization
-  set_penalty!(env_model, one(T))      # initial penalty
+  init_penalty > 0 || throw(ArgumentError("init_penalty must be positive"))
+  if isa(env_model.model, NCLModel) && (init_penalty != 1 || any(!iszero, init_multiplier))
+    # the penalty ρ of the NCLModel is updated along with μ but is not warm-started here
+    throw(ArgumentError("warm-starting μ and y is not supported for NCLModels"))
+  end
+  set_multiplier!(env_model, init_multiplier isa Number ? T(init_multiplier) : init_multiplier)
+  set_penalty!(env_model, T(init_penalty))
   Fμy = similar(env_model.Fμy)
   u = similar(env_model.ph)
   y = similar(env_model.y)
@@ -188,7 +211,7 @@ function envelopt(
 
   fx = obj(env_model.model, stats.solution)
   hu = env_model.h(u)
-  stats.objective = fx + hu
+  stats.objective = fx + hu + regularizer_value(subsolver, stats.solution)
   stats.iter = tot_iter
 
   # TODO: return u in stats?

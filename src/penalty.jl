@@ -7,6 +7,11 @@ function exact_penalty_solver(
   verbose = true,
   sub_verbose = false,
   sub_solver = MadNLPEnveloptSubSolver,
+  warm_start::Bool = true,
+  atol = 1.0e-6,
+  rtol = 0.0,
+  τ = 10.0,
+  max_iter = 100,
 )
   (unconstrained(nlp) || bound_constrained(nlp)) &&
     error("exact penalty solver only supports constrained problems")
@@ -49,16 +54,20 @@ function exact_penalty_solver(
   end
 
   # initializations
-  τ = 10.0  # penalty parameter
   iter = 0
-  max_iter = 100
-  dfeas_tol = 1.0e-6
+  dfeas_tol = atol
   subtol = 1.0e-2
   pfeas_measure = penalty(1.0)
   cval = cons(Fmodel, get_x0(Fmodel))
   pfeas = pfeas_measure(cval)
-  pfeas_tol = 1.0e-6 * (1 + pfeas)
+  pfeas_tol = atol + rtol * pfeas
   x = get_x0(model)
+
+  # Moreau envelope parameter and multiplier estimate of F(x) - u = 0, carried over between
+  # penalty iterations when warm_start = true. The multiplier remains a valid estimate when τ
+  # increases because it lies in ∂(τ‖⋅‖)(u), which is contained in the ball of radius τ for the dual norm.
+  μ_env = one(eltype(x))
+  y_env = zero(eltype(x))
 
   if verbose
     @info @sprintf "%-4s  %-7s  %-7s  %-7s  %-7s  %-7s\n" "outer" "penalty" "subtol" "dfeas" "pfeas" "‖step‖"
@@ -87,7 +96,13 @@ function exact_penalty_solver(
       dtol_min = subtol,
       ptol_min = subtol,
       indent = "  ",
+      init_penalty = μ_env,
+      init_multiplier = y_env,
     )
+    if warm_start
+      μ_env = env_model.μ
+      y_env = copy(env_model.y)
+    end
 
     # check progress towards feasibility
     step_norm = pfeas_measure(stats.solution - x)

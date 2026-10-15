@@ -401,73 +401,26 @@ function JSOSolvers.default_callback_quasi_newton(
   end
 end
 
-# the constraints are the same as in the original model
-
-NLPModels.cons!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
-  cons!(model.model, x, c)
-
-NLPModels.cons_lin!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
-  cons_lin!(model.model, x, c)
-
-NLPModels.cons_nln!(model::EnveloptNLPModel, x::AbstractVector, c::AbstractVector) =
-  cons_nln!(model.model, x, c)
-
-# Need to be defined too in case some NLPModels don't implement the lin/nln parts separately.
-# E.g., AmplModels at the moment.
-
-NLPModels.jac_structure!(model::EnveloptNLPModel, rows::AbstractVector, cols::AbstractVector) =
-  jac_structure!(model.model, rows, cols)
-
-NLPModels.jprod!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jv::AbstractVector,
-) = jprod!(model.model, x, v, jv)
-
-NLPModels.jtprod!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jtv::AbstractVector,
-) = jtprod!(model.model, x, v, jtv)
-
-NLPModels.jac_lin_structure!(model::EnveloptNLPModel, rows::AbstractVector, cols::AbstractVector) =
-  jac_lin_structure!(model.model, rows, cols)
-
-NLPModels.jac_nln_structure!(model::EnveloptNLPModel, rows::AbstractVector, cols::AbstractVector) =
-  jac_nln_structure!(model.model, rows, cols)
-
-NLPModels.jac_lin_coord!(model::EnveloptNLPModel, x::AbstractVector, vals::AbstractVector) =
-  jac_lin_coord!(model.model, x, vals)
-
-NLPModels.jac_nln_coord!(model::EnveloptNLPModel, x::AbstractVector, vals::AbstractVector) =
-  jac_nln_coord!(model.model, x, vals)
-
-NLPModels.jprod_lin!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jv::AbstractVector,
-) = jprod_lin!(model.model, x, v, jv)
-
-NLPModels.jprod_nln!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jv::AbstractVector,
-) = jprod_nln!(model.model, x, v, jv)
-
-NLPModels.jtprod_lin!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jtv::AbstractVector,
-) = jtprod_lin!(model.model, x, v, jtv)
-
-NLPModels.jtprod_nln!(
-  model::EnveloptNLPModel,
-  x::AbstractVector,
-  v::AbstractVector,
-  jtv::AbstractVector,
-) = jtprod_nln!(model.model, x, v, jtv)
+# Forward the rest of the NLPModels API to the inner model.
+for (meths, args, has_kwargs) in (
+  ((:cons!, :cons_lin!, :cons_nln!, :jac_lin_coord!, :jac_nln_coord!), (:x, :out), false),
+  ((:jac_structure!, :jac_lin_structure!, :jac_nln_structure!), (:rows, :cols), false),
+  (
+    (:jprod!, :jprod_lin!, :jprod_nln!, :jtprod!, :jtprod_lin!, :jtprod_nln!),
+    (:x, :v, :out),
+    false,
+  ),
+  ((:hprod!,), (:x, :v, :hv), true),
+  ((:hprod!,), (:x, :y, :v, :hv), true),
+)
+  typed_args = [:($arg::AbstractVector) for arg in args]
+  for meth in meths
+    if has_kwargs
+      @eval NLPModels.$meth(model::EnveloptNLPModel, $(typed_args...); kwargs...) =
+        $meth(model.model, $(args...); kwargs...)
+    else
+      @eval NLPModels.$meth(model::EnveloptNLPModel, $(typed_args...)) =
+        $meth(model.model, $(args...))
+    end
+  end
+end
