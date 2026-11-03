@@ -1,5 +1,6 @@
 using ProximalOperators, ADNLPModels
 using LinearAlgebra, Random, Statistics
+using NLPModelsIpopt
 
 using Envelopt
 

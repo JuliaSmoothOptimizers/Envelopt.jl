@@ -1,6 +1,6 @@
 using ProximalOperators, ADNLPModels
 using Random, LinearAlgebra, Statistics
-using NCL, MadNLP, NLPModelsIpopt
+using JSOSolvers, MadNLP, NCL, NLPModelsIpopt
 
 using Envelopt
 
