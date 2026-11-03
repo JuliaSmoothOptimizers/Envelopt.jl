@@ -121,7 +121,12 @@ for i = 1:ntrials
 
   # with Envelopt+MadNLP
   env_model = EnveloptNLPModel(model, h)
-  stats, status, u, nlp_iter = envelopt(env_model, ptol_min = TOL, dtol_min = TOL)
+  stats, status, u, nlp_iter = envelopt(
+    env_model,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = MadNLPEnveloptSubSolver(env_model),
+  )
   res.envelopt_madnlp.flag[i] = process_output(stats)
   res.envelopt_madnlp.iter[i] = nlp_iter
 
@@ -149,7 +154,12 @@ for i = 1:ntrials
   # with NCL+Envelopt+MadNLP
   ncl_model = NCLModel(model)
   env_ncl_model = EnveloptNLPModel(ncl_model, h)
-  stats, status, u, nlp_iter = envelopt(env_ncl_model, ptol_min = TOL, dtol_min = TOL)
+  stats, status, u, nlp_iter = envelopt(
+    env_ncl_model,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = MadNLPEnveloptSubSolver(env_ncl_model),
+  )
   res.ncl_envelopt_madnlp.flag[i] = process_output(stats)
   res.ncl_envelopt_madnlp.iter[i] = nlp_iter
 
@@ -167,7 +177,12 @@ for i = 1:ntrials
 
   # BND formulation with Envelopt+MadNLP
   env_model_bnd = EnveloptNLPModel(model_bnd, Fmodel_bnd, h_bnd)
-  stats, status, u, nlp_iter = envelopt(env_model_bnd, ptol_min = TOL, dtol_min = TOL)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_bnd,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = MadNLPEnveloptSubSolver(env_model_bnd),
+  )
   res.envelopt_madnlp_bnd.flag[i] = process_output(stats)
   res.envelopt_madnlp_bnd.iter[i] = nlp_iter
 
@@ -195,7 +210,12 @@ for i = 1:ntrials
 
   # UNC formulation with Envelopt+MadNLP
   env_model_unc = EnveloptNLPModel(model_unc, Fmodel_bnd, h_unc)
-  stats, status, u, nlp_iter = envelopt(env_model_unc, ptol_min = TOL, dtol_min = TOL)
+  stats, status, u, nlp_iter = envelopt(
+    env_model_unc,
+    ptol_min = TOL,
+    dtol_min = TOL,
+    subsolver = MadNLPEnveloptSubSolver(env_model_unc),
+  )
   res.envelopt_madnlp_unc.flag[i] = process_output(stats)
   res.envelopt_madnlp_unc.iter[i] = nlp_iter
 

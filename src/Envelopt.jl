@@ -22,6 +22,12 @@ include("remove_eqs.jl")
 include("penalty.jl")
 
 # Extensions
+export MadNLPEnveloptSubSolver
+
+function MadNLPEnveloptSubSolver(args...; kwargs...)
+  error("MadNLP support is not loaded. Install and load MadNLP.jl to use MadNLPEnveloptSubSolver.")
+end
+
 export KnitroEnveloptSubSolver
 
 function KnitroEnveloptSubSolver(args...; kwargs...)

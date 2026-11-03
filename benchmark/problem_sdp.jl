@@ -1,7 +1,7 @@
 using ProximalOperators, ADNLPModels
 using Random
 using JuMP
-using NLPModelsIpopt
+using MadNLP, NLPModelsIpopt
 import Clarabel
 import SCS
 
