@@ -1,7 +1,7 @@
 module EnveloptKnitroExt
 
 using Envelopt
-using NLPModels, 
+using NLPModels
 using NLPModelsKnitro
 using SolverCore
 
