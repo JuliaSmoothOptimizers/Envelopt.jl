@@ -97,10 +97,7 @@ end
   :tron,
 ] begin
   using ADNLPModels,
-    JSOSolvers,
-    OptimizationProblems,
-    OptimizationProblems.ADNLPProblems,
-    ProximalOperators
+    JSOSolvers, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs1()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -120,10 +117,7 @@ end
 
 @testitem "test constrained problem with IPOPT" tags=[:solvers, :constrained, :ipopt] begin
   using ADNLPModels,
-    NLPModelsIpopt,
-    OptimizationProblems,
-    OptimizationProblems.ADNLPProblems,
-    ProximalOperators
+    NLPModelsIpopt, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs13()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default

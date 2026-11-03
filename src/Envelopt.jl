@@ -41,9 +41,7 @@ end
 export TronEnveloptSubSolver, TrunkEnveloptSubSolver
 
 function TronEnveloptSubSolver(args...; kwargs...)
-  error(
-    "TRON support is not loaded. Install and load JSOSolvers.jl to use TronEnveloptSubSolver.",
-  )
+  error("TRON support is not loaded. Install and load JSOSolvers.jl to use TronEnveloptSubSolver.")
 end
 
 function TrunkEnveloptSubSolver(args...; kwargs...)
