@@ -1,7 +1,9 @@
 module EnveloptIpoptExt
 
-using Envelopt, NLPModels, SolverCore
+using Envelopt
+using NLPModels
 using NLPModelsIpopt
+using SolverCore
 
 # IPOPT subproblem solver
 mutable struct IPOPTEnveloptSubSolver <: Envelopt.AbstractEnveloptSubSolver

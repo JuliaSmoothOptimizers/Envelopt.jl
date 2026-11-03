@@ -1,7 +1,9 @@
 module EnveloptKnitroExt
 
-using Envelopt, NLPModels, SolverCore
+using Envelopt
+using NLPModels, 
 using NLPModelsKnitro
+using SolverCore
 
 # Knitro subproblem solver
 mutable struct KnitroEnveloptSubSolver <: Envelopt.AbstractEnveloptSubSolver

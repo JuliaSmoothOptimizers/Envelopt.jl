@@ -1,8 +1,10 @@
 module EnveloptJSOSolversExt
 
-using Envelopt, NLPModels, SolverCore
+using Envelopt
 using JSOSolvers
 using NCL: NCLModel
+using NLPModels
+using SolverCore
 
 include("JSOSolvers/tron.jl")
 include("JSOSolvers/trunk.jl")
