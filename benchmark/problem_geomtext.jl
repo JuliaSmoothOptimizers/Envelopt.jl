@@ -2,6 +2,7 @@ using ProximalOperators, ManualNLPModels, NLPModels
 using Random
 using FFTW, LinearAlgebra, AbstractOperators
 using MAT, Images, SparseArrays
+using MadNLP
 
 using Envelopt
 
@@ -222,8 +223,13 @@ env_model = EnveloptNLPModel(model, Fmodel, h)
 
 # TODO add callback to monitor SNR as in the PIPA paper
 TOL = 1e-3
-runtime = @elapsed stats, status, u, tot_inner_iter =
-  envelopt(env_model, verbose = true, dtol_min = TOL, ptol_min = TOL)
+runtime = @elapsed stats, status, u, tot_inner_iter = envelopt(
+  env_model,
+  verbose = true,
+  dtol_min = TOL,
+  ptol_min = TOL,
+  subsolver = MadNLPEnveloptSubSolver(env_model),
+)
 display(stats)
 display(runtime)
 display(stats.iter)

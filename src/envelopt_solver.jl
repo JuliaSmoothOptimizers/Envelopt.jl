@@ -5,10 +5,6 @@ abstract type AbstractEnveloptSubSolver end
 name(sub::AbstractEnveloptSubSolver) = sub.name
 failed(stats::GenericExecutionStats) = stats.status != :first_order
 first_order(stats::GenericExecutionStats) = stats.status == :first_order
-include("ipopt_sub.jl")
-include("madnlp_sub.jl")
-include("trunk_sub.jl")
-include("tron_sub.jl")
 
 # TODO: preallocate solver object so envelopt can be called in a loop
 """
@@ -35,6 +31,23 @@ Each subproblem has the form
 
 where h_μ is the Moreau envelope of g with parameter μ > 0, and y is a dual variable estimate.
 The subproblems are solved with a solver chosen by the user using a quasi-Newton approximation of the Hessian.
+
+Each available subsolver lives in a package extension that is activated by loading the corresponding package:
+
+| subsolver                 | package(s) to load             |
+|:--------------------------|:-------------------------------|
+| `MadNLPEnveloptSubSolver` | `MadNLP`                       |
+| `IPOPTEnveloptSubSolver`  | `NLPModelsIpopt`               |
+| `KnitroEnveloptSubSolver` | `KNITRO` and `NLPModelsKnitro` |
+| `TronEnveloptSubSolver`   | `JSOSolvers`                   |
+| `TrunkEnveloptSubSolver`  | `JSOSolvers`                   |
+
+# Example
+
+```julia
+using Envelopt, MadNLP
+stats, status, u, inner_iter = envelopt(env_model, subsolver = MadNLPEnveloptSubSolver(env_model))
+```
 """
 function envelopt(model::AbstractNLPModel, args...; kwargs...)
   env_model = EnveloptNLPModel(model, args...)
@@ -43,7 +56,7 @@ end
 
 function envelopt(
   env_model::EnveloptNLPModel;
-  subsolver::AbstractEnveloptSubSolver = MadNLPEnveloptSubSolver(env_model),
+  subsolver::AbstractEnveloptSubSolver,
   verbose::Bool = true,
   max_outer::Int = 20,
   dtol_min::Float64 = 1.0e-6,

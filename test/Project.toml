@@ -1,6 +1,7 @@
 [deps]
 ADNLPModels = "54578032-b7ea-4c30-94aa-7cbd1cce6c9a"
 Envelopt = "417aea36-706c-5cbc-964a-c036b78ce24c"
+JSOSolvers = "10dff2fc-5484-5881-a0e0-c90441020f8a"
 KNITRO = "67920dd8-b58e-52a8-8622-53c4cffbe346"
 MadNLP = "2621e9c9-9eb4-46b1-8089-e8c72242dfb6"
 NCL = "af6b844e-5feb-47ff-8350-2ae20a94a0cf"
@@ -18,6 +19,7 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
 ADNLPModels = "0.8"
+JSOSolvers = "0.14"
 KNITRO = "1"
 MadNLP = "0.9, 0.10"
 NCL = "0.1"

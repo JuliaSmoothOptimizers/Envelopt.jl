@@ -1,14 +1,12 @@
-export TronEnveloptSubSolver
-
 # TRON subproblem solver
-mutable struct TronEnveloptSubSolver <: AbstractEnveloptSubSolver
+mutable struct TronEnveloptSubSolver <: Envelopt.AbstractEnveloptSubSolver
   solver::TronSolver
   stats::GenericExecutionStats
   name::String
 end
 
 # ... constructor
-function TronEnveloptSubSolver(env_model::EnveloptNLPModel)
+function Envelopt.TronEnveloptSubSolver(env_model::EnveloptNLPModel)
   @debug "initializing Tron subproblem solver"
   unconstrained(env_model) ||
     bound_constrained(env_model) ||

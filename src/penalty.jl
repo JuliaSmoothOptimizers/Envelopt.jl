@@ -6,7 +6,7 @@ function exact_penalty_solver(
   penalty = NormL2;
   verbose = true,
   sub_verbose = false,
-  sub_solver = MadNLPEnveloptSubSolver,
+  sub_solver,
 )
   (unconstrained(nlp) || bound_constrained(nlp)) &&
     error("exact penalty solver only supports constrained problems")

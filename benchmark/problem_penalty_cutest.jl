@@ -1,6 +1,7 @@
 using ProximalOperators
 using OptimizationProblems, OptimizationProblems.ADNLPProblems
 using Statistics
+using MadNLP, NLPModelsIpopt
 
 using Envelopt
 

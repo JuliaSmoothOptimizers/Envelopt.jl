@@ -2,7 +2,7 @@
 # using Test
 
 @testitem "single subproblem solve with Trunk" tags=[:solver, :unconstrained, :trunk] begin
-  using ADNLPModels, NLPModels, ProximalOperators
+  using ADNLPModels, JSOSolvers, NLPModels, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -12,7 +12,7 @@
 end
 
 @testitem "single subproblem solve with TRON" tags=[:solver, :unconstrained, :tron] begin
-  using ADNLPModels, NLPModels, ProximalOperators
+  using ADNLPModels, JSOSolvers, NLPModels, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -22,7 +22,7 @@ end
 end
 
 @testitem "single subproblem solve with MadNLP" tags=[:solver, :unconstrained, :madnlp] begin
-  using ADNLPModels, NLPModels, ProximalOperators
+  using ADNLPModels, MadNLP, NLPModels, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -32,7 +32,7 @@ end
 end
 
 @testitem "single subproblem solve with IPOPT" tags=[:solver, :unconstrained, :ipopt] begin
-  using ADNLPModels, NLPModels, ProximalOperators
+  using ADNLPModels, NLPModels, NLPModelsIpopt, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -53,7 +53,7 @@ end
 end
 
 @testitem "simple unconstrained envelopt solve with IPOPT" tags=[:solver, :unconstrained, :ipopt] begin
-  using ADNLPModels, ProximalOperators
+  using ADNLPModels, NLPModelsIpopt, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -63,16 +63,17 @@ end
 end
 
 @testitem "simple unconstrained envelopt solve with MadNLP" tags=[:solver, :unconstrained, :madnlp] begin
-  using ADNLPModels, ProximalOperators
+  using ADNLPModels, MadNLP, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
-  stats, status, u = envelopt(env_model, verbose = false)
+  stats, status, u =
+    envelopt(env_model, subsolver = MadNLPEnveloptSubSolver(env_model), verbose = false)
   @test status == :first_order
 end
 
 @testitem "simple unconstrained envelopt solve with Trunk" tags=[:solver, :unconstrained, :trunk] begin
-  using ADNLPModels, ProximalOperators
+  using ADNLPModels, JSOSolvers, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -82,7 +83,7 @@ end
 end
 
 @testitem "simple unconstrained envelopt solve with Tron" tags=[:solver, :unconstrained, :tron] begin
-  using ADNLPModels, ProximalOperators
+  using ADNLPModels, JSOSolvers, ProximalOperators
   model = ADNLPModel(x -> (x[1] - 1.0)^2 + 100 * (x[2] - x[1]^2)^2, [-1.2; 1.0])
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -96,7 +97,8 @@ end
   :boundconstrained,
   :tron,
 ] begin
-  using ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  using ADNLPModels,
+    JSOSolvers, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs1()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -106,16 +108,19 @@ end
 end
 
 @testitem "test constrained problem with MadNLP" tags=[:solvers, :constrained, :madnlp] begin
-  using ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  using ADNLPModels,
+    MadNLP, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs13()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
-  stats, status, u = envelopt(env_model, verbose = false)
+  stats, status, u =
+    envelopt(env_model, subsolver = MadNLPEnveloptSubSolver(env_model), verbose = false)
   @test status == :first_order
 end
 
 @testitem "test constrained problem with IPOPT" tags=[:solvers, :constrained, :ipopt] begin
-  using ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
+  using ADNLPModels,
+    NLPModelsIpopt, OptimizationProblems, OptimizationProblems.ADNLPProblems, ProximalOperators
   model = hs13()
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(model, h)  # F(x) = x and μ = 1 by default
@@ -124,8 +129,8 @@ end
   @test status == :first_order
 end
 
-@testitem "test complementarity problem with NCL" tags=[:solvers, :constrained, :mpcc] begin
-  using ADNLPModels, NCL, ProximalOperators
+@testitem "test complementarity problem with NCL" tags=[:solvers, :constrained, :mpcc, :madnlp] begin
+  using ADNLPModels, MadNLP, NCL, ProximalOperators
   # min (x₁ - 1)² + (x₂ - 1)²  s.t. x₁ * x₂ = 0, x₁ ≥ 0, x₂ \geq 0.
   model = ADNLPModel(
     x -> (x[1] - 1)^2 + (x[2] - 1)^2,
@@ -139,6 +144,7 @@ end
   ncl_model = NCLModel(model)
   h = NormL1(1.0)
   env_model = EnveloptNLPModel(ncl_model, h)  # F(x, r) = x and μ = 1 by default
-  stats, status, u = envelopt(env_model, verbose = false)
+  stats, status, u =
+    envelopt(env_model, subsolver = MadNLPEnveloptSubSolver(env_model), verbose = false)
   @test status == :first_order
 end

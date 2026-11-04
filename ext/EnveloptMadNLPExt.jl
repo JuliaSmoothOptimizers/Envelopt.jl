@@ -1,16 +1,18 @@
-export MadNLPEnveloptSubSolver
+module EnveloptMadNLPExt
 
+using Envelopt
 using MadNLP
+using NLPModels
 
 # MadNLP subproblem solver
-mutable struct MadNLPEnveloptSubSolver <: AbstractEnveloptSubSolver
+mutable struct MadNLPEnveloptSubSolver <: Envelopt.AbstractEnveloptSubSolver
   solver::MadNLPSolver
   stats::MadNLP.MadNLPExecutionStats
   name::String
 end
 
 # ... constructor
-function MadNLPEnveloptSubSolver(env_model::EnveloptNLPModel)
+function Envelopt.MadNLPEnveloptSubSolver(env_model::EnveloptNLPModel)
   @debug "initializing MADNLP subproblem solver"
   solver =
     MadNLPSolver(env_model, hessian_approximation = MadNLP.CompactLBFGS, print_level = MadNLP.ERROR)
@@ -73,5 +75,7 @@ function (M::MadNLPEnveloptSubSolver)(
   return M.stats
 end
 
-failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED
-first_order(stats::MadNLP.MadNLPExecutionStats) = stats.status == MadNLP.SOLVE_SUCCEEDED
+Envelopt.failed(stats::MadNLP.MadNLPExecutionStats) = stats.status != MadNLP.SOLVE_SUCCEEDED
+Envelopt.first_order(stats::MadNLP.MadNLPExecutionStats) = stats.status == MadNLP.SOLVE_SUCCEEDED
+
+end
